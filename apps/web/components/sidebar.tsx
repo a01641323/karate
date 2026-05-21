@@ -13,10 +13,12 @@ interface Props {
 export function AdminSidebar({ onOpenTournamentSettings }: Props) {
   const { state, setActiveCategory, setActiveSubcategory } = useStore();
   const { hasRole } = useAuth();
-  const { current: areaIdx } = useArea();
+  const { current: areaIdx, setArea } = useArea();
   const t = state.tournament;
   const isSuperadmin = hasRole("superadmin");
-  const filterByArea = !isSuperadmin && typeof areaIdx === "number";
+  // Area filter applies to anyone who has picked an area. Superadmin can
+  // explicitly choose "all areas" (areaIdx === null) to see the union view.
+  const filterByArea = typeof areaIdx === "number";
 
   return (
     <aside className="admin-sidebar">
@@ -24,14 +26,18 @@ export function AdminSidebar({ onOpenTournamentSettings }: Props) {
         <button className="tourn-settings-btn" onClick={onOpenTournamentSettings}>
           ⚙ Tournament Settings
         </button>
-      ) : (
-        <div
-          className="muted"
-          style={{ fontSize: 12, padding: "8px 12px", borderBottom: "1px solid var(--border, #2a3142)" }}
-        >
-          Refereeing Area {(areaIdx ?? 0) + 1}
-        </div>
-      )}
+      ) : null}
+      <div className="area-chip">
+        <span className="muted-mono">VIEWING</span>
+        <span className="area-chip-label">
+          {filterByArea ? `Area ${areaIdx! + 1}` : "All areas"}
+        </span>
+        {isSuperadmin && filterByArea ? (
+          <button type="button" className="area-chip-link" onClick={() => setArea(null)}>
+            show all
+          </button>
+        ) : null}
+      </div>
       <h3>Categories</h3>
       <div>
         {t.categoryOrder.map((cid) => {

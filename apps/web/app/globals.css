@@ -1469,28 +1469,82 @@ body.is-public.fs-active .fs-hint { opacity: 0; }
   gap: 14px;
 }
 .area-card {
-  background: var(--panel, #161a23);
-  border: 1px solid var(--border, #2a3142);
-  border-radius: 12px;
-  padding: 18px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 6px;
+  padding: 20px;
   cursor: pointer;
   text-align: left;
   font: inherit;
-  color: inherit;
+  color: var(--color-fg);
   transition: border-color 0.15s, transform 0.1s;
 }
-.area-card:hover { border-color: var(--accent, #4f8cff); }
+.area-card:hover { border-color: var(--color-accent); }
 .area-card:active { transform: scale(0.99); }
 .area-card .area-num {
+  font-family: var(--font-mono);
   font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--color-fg);
 }
 .area-card .area-meta {
-  color: var(--muted, #8a93a6);
-  font-size: 13px;
+  color: var(--color-fg-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
   margin-top: 4px;
 }
+.area-card-all .area-num { color: var(--color-accent); }
+.area-card-all { border-style: dashed; }
+
+.area-notice {
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 4px;
+  color: var(--color-fg-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Area chip at the top of the admin sidebar */
+.area-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-bg-2);
+  font-size: 12px;
+}
+.area-chip .muted-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-fg-2);
+}
+.area-chip-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-fg);
+  letter-spacing: 0.02em;
+}
+.area-chip-link {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0;
+}
+.area-chip-link:hover { filter: brightness(1.15); }
 
 /* ============ superadmin dashboard ============ */
 .super-dashboard {
