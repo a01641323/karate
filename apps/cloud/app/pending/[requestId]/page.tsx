@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Arrow, Footer, TopBar } from "@/components/chrome";
 
 type Status =
   | { status: "pending"; createdAt: number }
@@ -17,6 +18,7 @@ export default function PendingPage({ params }: { params: Promise<{ requestId: s
   const key = search.get("key");
   const [data, setData] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -28,7 +30,7 @@ export default function PendingPage({ params }: { params: Promise<{ requestId: s
         }`;
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) {
-          setError(res.status === 401 ? "This page is private. Open the original link." : `HTTP ${res.status}`);
+          setError(res.status === 401 ? "Esta página es privada. Abre el enlace original." : `HTTP ${res.status}`);
           return;
         }
         const j = (await res.json()) as Status;
@@ -40,75 +42,144 @@ export default function PendingPage({ params }: { params: Promise<{ requestId: s
       }
     }
     tick();
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-    };
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
   }, [requestId, key]);
 
+  function copyCode(code: string) {
+    navigator.clipboard?.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  const statusLabel =
+    data?.status === "pending" ? "Esperando aprobación" :
+    data?.status === "granted" ? "✓ Aprobado" :
+    data?.status === "rejected" ? "✗ Rechazado" :
+    "Cargando…";
+  const statusClass =
+    data?.status === "pending" ? "status-checking" :
+    data?.status === "granted" ? "status-success" :
+    data?.status === "rejected" ? "status-error" :
+    "status-checking";
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-8 px-6 py-16">
-      <header>
-        <h1 className="text-3xl font-semibold">Your token request</h1>
-        <p className="mt-3 text-sm text-zinc-400">
-          Bookmark this page — your code will appear here once approved.
-        </p>
-      </header>
+    <div>
+      <TopBar />
 
-      {error && (
-        <div className="rounded border border-red-500/40 bg-red-500/10 p-4 text-red-200">
-          {error}
-        </div>
-      )}
-
-      {!error && !data && <p className="text-zinc-400">Loading…</p>}
-
-      {data?.status === "pending" && (
-        <div className="rounded-lg border border-white/10 bg-zinc-900 p-6 text-center">
-          <p className="text-xl font-medium">Waiting for approval</p>
-          <p className="mt-2 text-sm text-zinc-400">
-            We check for updates every 5 seconds. Leave this tab open or come back to this URL.
-          </p>
-        </div>
-      )}
-
-      {data?.status === "granted" && data.code && (
-        <div className="space-y-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-6">
-          <p className="text-xl font-medium">Your activation code</p>
-          <div className="rounded bg-zinc-950 p-4 text-center font-mono text-4xl tracking-widest">
-            {data.code}
+      <section className="section">
+        <div className="section-head">
+          <div className="section-num">03</div>
+          <div className="section-titles">
+            <h2 className="section-title">Tu solicitud</h2>
+            <p className="section-sub">
+              Marca esta página o copia su URL — tu código aparecerá aquí
+              cuando el operador apruebe la solicitud.
+            </p>
           </div>
-          <p className="text-sm text-zinc-300">
-            Valid for{" "}
-            {data.ttlHours ? `${data.ttlHours} hours` : "one tournament day"} once activated.
-            Single-use; locks to the first machine that redeems it.
-          </p>
-          <Link
-            href="/download"
-            className="inline-block rounded bg-white px-5 py-2.5 font-medium text-black hover:bg-zinc-200"
-          >
-            Download the app →
-          </Link>
+          <div className="section-meta">{statusLabel.toUpperCase()}</div>
         </div>
-      )}
 
-      {data?.status === "granted" && !data.code && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-6">
-          <p className="font-medium">Code revoked or unavailable</p>
-          <p className="mt-2 text-sm text-zinc-300">
-            Contact the operator if you believe this is an error.
-          </p>
-        </div>
-      )}
+        {error && (
+          <div className="card" style={{ borderColor: "color-mix(in oklab, var(--color-accent) 50%, var(--color-line))" }}>
+            <div className="card-head">
+              <span className="card-eyebrow">ERROR</span>
+            </div>
+            <p style={{ color: "var(--color-fg)" }}>{error}</p>
+          </div>
+        )}
 
-      {data?.status === "rejected" && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-6">
-          <p className="font-medium">Request rejected</p>
-          {data.rejectionReason && (
-            <p className="mt-2 text-sm text-zinc-300">{data.rejectionReason}</p>
-          )}
-        </div>
-      )}
-    </main>
+        {!error && !data && (
+          <div className="card">
+            <div className="card-head">
+              <span className="card-eyebrow">CARGANDO</span>
+              <span className="card-meta">Consultando estado…</span>
+            </div>
+            <p style={{ color: "var(--color-fg-2)" }}>Un momento.</p>
+          </div>
+        )}
+
+        {data?.status === "pending" && (
+          <div className="card">
+            <div className="card-head">
+              <span className="card-eyebrow">EN COLA</span>
+              <span className={`card-status ${statusClass}`}>{statusLabel}</span>
+            </div>
+            <div className="code-display" style={{ opacity: 0.4 }}>
+              <span>•</span><span>•</span><span>•</span><span>•</span><span>•</span><span>•</span>
+            </div>
+            <p style={{ marginTop: 20, color: "var(--color-fg-2)", fontSize: 14 }}>
+              Revisamos las solicitudes manualmente. Refresco automático cada 5 segundos —
+              también puedes recargar la página en cualquier momento.
+            </p>
+          </div>
+        )}
+
+        {data?.status === "granted" && data.code && (
+          <div className="card" style={{ borderColor: "color-mix(in oklab, var(--color-success) 40%, var(--color-line))" }}>
+            <div className="card-head">
+              <span className="card-eyebrow">CÓDIGO DE ACTIVACIÓN</span>
+              <span className={`card-status ${statusClass}`}>{statusLabel}</span>
+            </div>
+
+            <div className="code-display">
+              {data.code.split("").map((d, i) => (
+                <span key={i} className="digit">{d}</span>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 20, flexWrap: "wrap" }}>
+              <button className="btn primary" onClick={() => copyCode(data.code!)}>
+                {copied ? "Copiado ✓" : "Copiar código"}
+              </button>
+              <Link href="/download" className="btn ghost">
+                Descargar la app <Arrow />
+              </Link>
+            </div>
+
+            <div className="success-banner">
+              <div className="success-line">
+                <span>Sesión válida por</span>
+                <strong>{data.ttlHours ?? 24} horas</strong>
+                <span style={{ color: "var(--color-fg-2)" }}>después de activar.</span>
+              </div>
+              <div className="success-line small">
+                Código de un solo uso · se bloquea a la primera máquina que lo redima.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {data?.status === "granted" && !data.code && (
+          <div className="card" style={{ borderColor: "color-mix(in oklab, var(--color-accent) 40%, var(--color-line))" }}>
+            <div className="card-head">
+              <span className="card-eyebrow">CÓDIGO REVOCADO</span>
+              <span className="card-status status-error">No disponible</span>
+            </div>
+            <p style={{ color: "var(--color-fg-2)" }}>
+              El operador revocó este código. Contacta para entender el motivo.
+            </p>
+          </div>
+        )}
+
+        {data?.status === "rejected" && (
+          <div className="card" style={{ borderColor: "color-mix(in oklab, var(--color-accent) 50%, var(--color-line))" }}>
+            <div className="card-head">
+              <span className="card-eyebrow">RECHAZADO</span>
+              <span className={`card-status ${statusClass}`}>{statusLabel}</span>
+            </div>
+            {data.rejectionReason ? (
+              <p style={{ color: "var(--color-fg)" }}>{data.rejectionReason}</p>
+            ) : (
+              <p style={{ color: "var(--color-fg-2)" }}>
+                Tu solicitud no fue aprobada. Puedes enviar una nueva desde{" "}
+                <Link href="/request" style={{ textDecoration: "underline" }}>aquí</Link>.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <Footer />
+    </div>
   );
 }

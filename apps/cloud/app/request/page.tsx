@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Arrow, Footer, TopBar } from "@/components/chrome";
 
 export default function RequestPage() {
   const router = useRouter();
@@ -27,8 +28,7 @@ export default function RequestPage() {
         throw new Error(j?.error ?? `HTTP ${res.status}`);
       }
       const { requestId, accessToken } = (await res.json()) as {
-        requestId: string;
-        accessToken: string;
+        requestId: string; accessToken: string;
       };
       router.push(`/pending/${requestId}?key=${encodeURIComponent(accessToken)}`);
     } catch (err) {
@@ -38,75 +38,118 @@ export default function RequestPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-8 px-6 py-16">
-      <header>
-        <h1 className="text-3xl font-semibold">Request a tournament token</h1>
-        <p className="mt-3 text-zinc-400">
-          Tell us who you are. The operator will review your request and your code
-          will appear here once approved.
-        </p>
-      </header>
+    <div>
+      <TopBar />
 
-      <form onSubmit={submit} className="space-y-4 rounded-lg border border-white/10 bg-zinc-900 p-6">
-        <Field label="Email *" required>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-white/10 bg-zinc-800 px-3 py-2 outline-none focus:border-blue-500"
-            placeholder="you@example.com"
-          />
-        </Field>
+      <section className="section">
+        <div className="section-head">
+          <div className="section-num">02</div>
+          <div className="section-titles">
+            <h2 className="section-title">Solicitar código</h2>
+            <p className="section-sub">
+              El operador revisa cada solicitud manualmente. Una vez
+              aprobada, tu código de activación aparecerá en esta misma
+              ventana.
+            </p>
+          </div>
+          <div className="section-meta">CÓDIGO · 6 DÍGITOS</div>
+        </div>
 
-        <Field label="Organization / dojo">
-          <input
-            value={org}
-            onChange={(e) => setOrg(e.target.value)}
-            className="w-full rounded border border-white/10 bg-zinc-800 px-3 py-2 outline-none focus:border-blue-500"
-          />
-        </Field>
+        <div className="access-grid">
+          <form className="card code-card" onSubmit={submit}>
+            <div className="card-head">
+              <span className="card-eyebrow">FORMULARIO</span>
+              <span className="card-meta">Datos del torneo</span>
+            </div>
 
-        <Field label="Tournament date">
-          <input
-            type="date"
-            value={tournamentDate}
-            onChange={(e) => setTournamentDate(e.target.value)}
-            className="w-full rounded border border-white/10 bg-zinc-800 px-3 py-2 outline-none focus:border-blue-500"
-          />
-        </Field>
+            <label className="field">
+              <span className="field-label">Correo electrónico *</span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="field-input"
+                placeholder="tu@correo.com"
+                autoComplete="email"
+              />
+            </label>
 
-        <Field label="Notes (optional)">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="h-24 w-full resize-y rounded border border-white/10 bg-zinc-800 px-3 py-2 outline-none focus:border-blue-500"
-            placeholder="Anything we should know."
-          />
-        </Field>
+            <label className="field">
+              <span className="field-label">Organización o dojo</span>
+              <input
+                value={org}
+                onChange={(e) => setOrg(e.target.value)}
+                className="field-input"
+                placeholder="Asociación, federación, dojo..."
+              />
+            </label>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+            <label className="field">
+              <span className="field-label">Fecha del torneo</span>
+              <input
+                type="date"
+                value={tournamentDate}
+                onChange={(e) => setTournamentDate(e.target.value)}
+                className="field-input"
+              />
+            </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-white px-5 py-2.5 font-medium text-black hover:bg-zinc-200 disabled:opacity-50"
-        >
-          {submitting ? "Submitting…" : "Request token"}
-        </button>
-      </form>
-    </main>
+            <label className="field">
+              <span className="field-label">Notas (opcional)</span>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="field-textarea"
+                placeholder="Cualquier contexto que ayude a aprobar tu solicitud."
+              />
+            </label>
+
+            {error && <div className="error-banner">{error}</div>}
+
+            <div className="code-actions" style={{ display: "flex", gap: 12, marginTop: 8 }}>
+              <button type="submit" className="btn primary" disabled={submitting}>
+                {submitting ? "Enviando…" : "Enviar solicitud"}
+                {!submitting && <Arrow />}
+              </button>
+            </div>
+          </form>
+
+          <div className="card sample-card">
+            <div className="card-head">
+              <span className="card-eyebrow">EJEMPLO</span>
+              <span className="card-meta">Cómo se ve tu código</span>
+            </div>
+
+            <div className="code-display">
+              <span style={{ opacity: 0.4 }}>1</span>
+              <span style={{ opacity: 0.55 }}>2</span>
+              <span style={{ opacity: 0.7 }}>3</span>
+              <span style={{ opacity: 0.7 }}>4</span>
+              <span style={{ opacity: 0.55 }}>5</span>
+              <span style={{ opacity: 0.4 }}>6</span>
+            </div>
+
+            <div style={{ display: "grid", gap: 12, marginTop: 24 }}>
+              <Row k="Formato" v="6 dígitos" />
+              <Row k="Validez" v="30 días para activar" />
+              <Row k="Sesión" v="24 horas tras activar" />
+              <Row k="Máquinas" v="1 por código" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </div>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Row({ k, v }: { k: string; v: string }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-zinc-300">
-        {label}
-        {required && <span className="ml-1 text-red-400">*</span>}
-      </span>
-      {children}
-    </label>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 13 }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em", color: "var(--color-fg-2)", textTransform: "uppercase" }}>{k}</span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, padding: "3px 8px", background: "color-mix(in oklab, var(--color-fg) 8%, transparent)", color: "var(--color-fg)" }}>{v}</span>
+    </div>
   );
 }

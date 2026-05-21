@@ -1,39 +1,113 @@
 import Link from "next/link";
+import { Arrow, Footer, TopBar } from "@/components/chrome";
 
 export default function LandingPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-6 py-16">
-      <header>
-        <h1 className="text-4xl font-semibold tracking-tight">Karate Tournament</h1>
-        <p className="mt-3 text-lg text-zinc-400">
-          A scoring system for karate tournaments. Runs as a local app on the
-          operator&apos;s machine — no internet required during the event.
-        </p>
-      </header>
+    <div>
+      <TopBar />
 
-      <section className="space-y-4 rounded-lg border border-white/10 bg-zinc-900 p-6">
-        <h2 className="text-xl font-semibold">How it works</h2>
-        <ol className="list-decimal space-y-2 pl-5 text-zinc-300">
-          <li>Request a tournament token here. You&apos;ll get a code once it&apos;s approved.</li>
-          <li>Download the app for your operating system.</li>
-          <li>Run the app, paste the code, and run your tournament for 24 hours.</li>
-        </ol>
+      <section className="hero">
+        <div className="hero-grid" aria-hidden />
+
+        <div className="hero-meta">
+          <span className="tag">
+            <span className="tag-dot" /> EDICIÓN 2026
+          </span>
+          <span className="tag-line">SISTEMA DIGITAL DE TORNEO</span>
+        </div>
+
+        <h1 className="hero-title">
+          <span className="hero-title-line">KUMITE</span>
+          <span className="hero-title-line outline">OPEN</span>
+        </h1>
+
+        <div className="kanji" aria-hidden>空手</div>
+
+        <div className="hero-foot">
+          <Link href="/request" className="hero-cta">
+            <span>Solicitar código</span>
+            <Arrow />
+          </Link>
+        </div>
       </section>
 
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/request"
-          className="rounded bg-white px-5 py-2.5 font-medium text-black hover:bg-zinc-200"
-        >
-          Request a token
-        </Link>
-        <Link
-          href="/download"
-          className="rounded border border-white/15 px-5 py-2.5 font-medium text-white hover:bg-white/5"
-        >
-          Download the app
-        </Link>
+      <AboutSection />
+      <HowItWorksSection />
+
+      <Footer />
+    </div>
+  );
+}
+
+function AboutSection() {
+  return (
+    <section className="section" id="about">
+      <div className="section-head">
+        <div className="section-num">01</div>
+        <div className="section-titles">
+          <h2 className="section-title">Sobre el sistema</h2>
+        </div>
+        <div className="section-meta">PLATAFORMA DIGITAL</div>
       </div>
-    </main>
+
+      <div className="about-grid">
+        <p className="about-lead">
+          Un sistema digital de scoring para torneos de karate. Solicita un
+          código aquí, descarga la app, y corre tu torneo durante 24 horas en
+          tu propia máquina — sin internet, sin papel, sin servidores
+          externos.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  const steps = [
+    {
+      n: "01",
+      t: "Solicita un código",
+      d: "Llena el formulario con tu correo y fecha de torneo. El operador revisa la solicitud.",
+    },
+    {
+      n: "02",
+      t: "Recibe la aprobación",
+      d: "Una vez aprobado, tu código de 6 dígitos aparece automáticamente en tu pantalla de espera.",
+    },
+    {
+      n: "03",
+      t: "Descarga la app",
+      d: "Un solo archivo ejecutable para tu sistema operativo: macOS, Windows o Linux.",
+    },
+    {
+      n: "04",
+      t: "Pega el código",
+      d: "Ejecuta la app, abre http://localhost:4747 en tu navegador y pega el código. 24 horas de torneo.",
+    },
+  ];
+  return (
+    <section className="section" id="how">
+      <div className="section-head">
+        <div className="section-num">02</div>
+        <div className="section-titles">
+          <h2 className="section-title">Cómo funciona</h2>
+          <p className="section-sub">Cuatro pasos. Cero papel.</p>
+        </div>
+        <div className="section-meta">~ 5 MIN DE SETUP</div>
+      </div>
+
+      <div className="steps">
+        {steps.map((s, i) => (
+          <div className="step" key={s.n}>
+            <div className="step-n">{s.n}</div>
+            <div className="step-body">
+              <div className="step-t">{s.t}</div>
+              <div className="step-d">{s.d}</div>
+            </div>
+            {i < steps.length - 1 && <div className="step-arrow"><Arrow /></div>}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
