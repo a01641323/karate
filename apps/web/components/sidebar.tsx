@@ -4,6 +4,7 @@ import { subcategoryStatus } from "@karate/core";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { useArea } from "@/lib/area-context";
+import { PaceBadge } from "@/components/pace-badge";
 
 interface Props {
   onOpenTournamentSettings: () => void;
@@ -87,6 +88,7 @@ export function AdminSidebar({ onOpenTournamentSettings }: Props) {
                             {sub.tag}
                           </span>
                         ) : null}
+                        <PaceBadge state={state} subcategoryId={sub.id} />
                       </button>
                     );
                   })}

@@ -127,6 +127,45 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--color-line);
 }
 .cat-group { margin-bottom: 8px; }
+.pace-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: var(--color-bg-2);
+  color: var(--color-fg-2);
+  white-space: nowrap;
+  transition: filter 0.15s;
+}
+.pace-badge.tier-ahead {
+  color: var(--color-status-green);
+  border-color: color-mix(in oklab, var(--color-status-green) 30%, var(--color-line-strong));
+  background: color-mix(in oklab, var(--color-status-green) 8%, var(--color-bg-2));
+}
+.pace-badge.tier-ontime {
+  color: var(--color-fg-2);
+  border-color: var(--color-line);
+}
+.pace-badge.tier-warn {
+  color: var(--color-amber);
+  border-color: color-mix(in oklab, var(--color-amber) 40%, var(--color-line-strong));
+  background: color-mix(in oklab, var(--color-amber) 10%, var(--color-bg-2));
+}
+.pace-badge.tier-behind {
+  color: var(--color-accent);
+  border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-line-strong));
+  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-bg-2));
+  animation: pace-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pace-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
+}
+
 .cat-group.locked .cat-btn {
   border-style: dashed;
   color: var(--color-fg-2);

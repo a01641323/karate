@@ -86,6 +86,18 @@ export interface SubcategoryRuntime {
   assignedAreaIndices: number[];
   /** Competitor names removed at check-in close. */
   absentCompetitors: string[];
+  /**
+   * Latest pace estimate, in seconds. Negative = ahead of schedule,
+   * positive = behind schedule. Computed each runEngineTick from
+   * (matches completed * avgMatchDurationSeconds) vs (now − actualStartTs).
+   * `null` until the subcategory's first match starts.
+   */
+  paceDeltaSeconds?: number | null;
+  /**
+   * Bucket of the pace delta, exposed to the UI without re-deriving the
+   * thresholds in the renderer. See computeSubcategoryPace().
+   */
+  paceTier?: "ahead" | "ontime" | "warn" | "behind" | null;
 }
 
 // =============================================================

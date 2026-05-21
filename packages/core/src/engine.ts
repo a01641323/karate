@@ -43,7 +43,7 @@ import {
   DEFAULT_ENGINE_CONFIG,
 } from "./engine-types";
 import { getSubcategory } from "./state";
-import { areaLabel } from "./areas";
+import { areaLabel, estimatedMatchCount } from "./areas";
 
 // =============================================================
 // Match ID encoding — stable across engine ticks.
@@ -342,7 +342,147 @@ export function hydrateEngineFromBracket(state: AppState, now: number): EngineSt
     a.status = computeAreaStatus(a, eng.config, now);
   }
 
+  // Refresh per-subcategory pace.
+  for (const subId of Object.keys(eng.subcategories)) {
+    const sub = eng.subcategories[subId]!;
+    computeSubcategoryPace(sub, eng, state, now);
+  }
+
+  // Auto-push: any sub now in the "behind" tier with no IN_PROGRESS matches
+  // gets moved to the area with the lightest remaining LPT load — provided
+  // the destination is materially lighter (so we don't thrash on noise).
+  redistributeBehindSubcategories(state, eng);
+
   return eng;
+}
+
+function redistributeBehindSubcategories(state: AppState, eng: EngineState): void {
+  const areaCount = state.tournament.settings.areaCount;
+  if (areaCount <= 1) return;
+
+  // Compute remaining-match load per area from current bracket state.
+  const loads = new Array(areaCount).fill(0) as number[];
+  const subById = new Map<string, import("./types").Subcategory>();
+  for (const catId of state.tournament.categoryOrder) {
+    const cat = state.tournament.categories[catId];
+    if (!cat) continue;
+    for (const sub of cat.subcategories) {
+      subById.set(sub.id, sub);
+      const areaIdx = state.tournament.areaAssignments[sub.id];
+      if (typeof areaIdx === "number" && areaIdx >= 0 && areaIdx < areaCount) {
+        const total = estimatedMatchCount(sub);
+        const completed = countCompletedForSub(eng, sub.id);
+        loads[areaIdx] += Math.max(0, total - completed);
+      }
+    }
+  }
+
+  for (const [subId, runtime] of Object.entries(eng.subcategories)) {
+    if (runtime.paceTier !== "behind") continue;
+    if (hasInProgressMatch(eng, subId)) continue;
+    const currentArea = state.tournament.areaAssignments[subId];
+    if (typeof currentArea !== "number") continue;
+    const sub = subById.get(subId);
+    if (!sub) continue;
+    const remaining = Math.max(0, estimatedMatchCount(sub) - countCompletedForSub(eng, subId));
+    if (remaining <= 0) continue;
+
+    // Pick the lightest OTHER area.
+    let best = -1;
+    let bestLoad = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < areaCount; i++) {
+      if (i === currentArea) continue;
+      if (loads[i]! < bestLoad) {
+        bestLoad = loads[i]!;
+        best = i;
+      }
+    }
+    if (best < 0) continue;
+    // Require materially-lighter destination (>= 2 fewer matches) to avoid
+    // bouncing on tiny load deltas.
+    if (bestLoad + 2 > loads[currentArea]!) continue;
+    state.tournament.areaAssignments[subId] = best;
+    loads[currentArea] -= remaining;
+    loads[best] += remaining;
+  }
+}
+
+function countCompletedForSub(eng: EngineState, subId: string): number {
+  let n = 0;
+  for (const m of Object.values(eng.matches)) {
+    if (m.ref.subcategoryId === subId && m.status === "COMPLETED") n++;
+  }
+  return n;
+}
+
+function hasInProgressMatch(eng: EngineState, subId: string): boolean {
+  for (const m of Object.values(eng.matches)) {
+    if (m.ref.subcategoryId === subId && m.status === "IN_PROGRESS") return true;
+  }
+  return false;
+}
+
+/**
+ * Compute the pace delta (seconds, signed) and tier bucket for a single
+ * running subcategory. Writes both fields onto the runtime entry.
+ *
+ * Pace model:
+ *   expectedSeconds = totalMatches * avgMatchDurationSeconds
+ *   elapsedSeconds  = now - actualStartTs
+ *   progress        = completed / totalMatches
+ *   pacedElapsed    = progress * expectedSeconds
+ *   paceDelta       = elapsedSeconds - pacedElapsed  // positive = behind
+ *
+ * A subcategory that has run 5 of 10 matches in 18 minutes (avg 3min/match,
+ * expected 30min) has progress 0.5 → pacedElapsed 15min → paceDelta +3min.
+ */
+function computeSubcategoryPace(
+  sub: import("./engine-types").SubcategoryRuntime,
+  eng: EngineState,
+  state: AppState,
+  now: number,
+): void {
+  if (!sub.actualStartTs) {
+    sub.paceDeltaSeconds = null;
+    sub.paceTier = null;
+    return;
+  }
+  // Find the live subcategory to count its match population.
+  let totalMatches = 0;
+  let completedMatches = 0;
+  for (const catId of state.tournament.categoryOrder) {
+    const cat = state.tournament.categories[catId];
+    if (!cat) continue;
+    const found = cat.subcategories.find((s) => s.id === sub.id);
+    if (!found) continue;
+    // Re-use the LPT estimator so the divisor matches the planner's view.
+    totalMatches = estimatedMatchCount(found);
+    break;
+  }
+  if (totalMatches <= 0) {
+    sub.paceDeltaSeconds = null;
+    sub.paceTier = null;
+    return;
+  }
+  for (const m of Object.values(eng.matches)) {
+    if (m.ref.subcategoryId !== sub.id) continue;
+    if (m.status === "COMPLETED") completedMatches += 1;
+  }
+  const avg = Math.max(1, eng.config.avgMatchDurationSeconds);
+  const expectedTotalSeconds = totalMatches * avg;
+  const elapsedSeconds = (now - sub.actualStartTs) / 1000;
+  const progress = Math.min(1, completedMatches / totalMatches);
+  const pacedElapsed = progress * expectedTotalSeconds;
+  const delta = elapsedSeconds - pacedElapsed;
+  sub.paceDeltaSeconds = Math.round(delta);
+
+  // Bucket the ratio against the expected total so a 5-match subcategory
+  // and a 50-match subcategory get comparable tiers.
+  const norm = delta / expectedTotalSeconds;
+  if (norm < -0.10) sub.paceTier = "ahead";
+  else if (norm <= 0.10) sub.paceTier = "ontime";
+  else if (norm <= 0.25) sub.paceTier = "warn";
+  else sub.paceTier = "behind";
 }
 
 function refreshCompetitorStatus(

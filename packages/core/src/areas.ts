@@ -1,4 +1,35 @@
-import type { AreaAssignments, Category } from "./types";
+import type { AreaAssignments, Category, Subcategory } from "./types";
+
+/**
+ * Conservative match-count estimate per subcategory shape. Used by
+ * buildAreaPlan's LPT scheduler to balance throughput rather than raw
+ * subcategory count.
+ *
+ * Worst-case bias is preferred — better to over-allocate a heavy
+ * subcategory than under-allocate it and finish that area late.
+ */
+export function estimatedMatchCount(sub: Subcategory): number {
+  const n = Math.max(sub.competitors.length, 1);
+  switch (sub.type) {
+    case "standard":
+      // Binary bracket: n - 1 elimination matches. Add 1 for the 3rd-place
+      // playoff that fires when n >= 4.
+      return Math.max(1, n - 1) + (n >= 4 ? 1 : 0);
+    case "playin":
+      // One extra play-in match plus a standard bracket of size = the
+      // configured subcategorySize. The play-in resolves the surplus
+      // competitor before the bracket starts.
+      return 1 + Math.max(1, (n - 1) - 1) + (n - 1 >= 4 ? 1 : 0);
+    case "series":
+      // Best-of-three: 2 matches minimum, 3 worst-case.
+      return 3;
+    case "roundrobin":
+      // Full round-robin: n choose 2.
+      return (n * (n - 1)) / 2;
+    default:
+      return n;
+  }
+}
 
 export interface AreaPlanInput {
   categoryOrder: string[];
@@ -24,18 +55,24 @@ export function areaLabel(idx: number): string {
 }
 
 /**
- * Distribute a tournament's subcategories across N areas.
+ * Distribute a tournament's subcategories across N areas using LPT
+ * (longest-processing-time first) bin-packing on estimated match count.
  *
- * Goals (in priority order):
- *   1. Balance the total number of subcategories per area.
- *   2. Keep all subcategories of the same category together where possible
- *      (avoid splitting a category across more areas than necessary).
+ * Goal: minimize the wall-clock makespan — every area finishes its day
+ * at roughly the same time. Counting subcategories alone misses that a
+ * 16-person standard bracket has 15× the work of a 4-person playoff;
+ * LPT on `estimatedMatchCount` weights each subcategory by its actual
+ * throughput cost.
  *
- * Algorithm: greedy bin-packing on whole categories first, breaking up only
- * when a category alone wouldn't fit in any single area's fair share.
+ * Algorithm:
+ *   1. Honor explicit `existing` assignments first (operator overrides).
+ *   2. Sort remaining subcategories by estimatedMatchCount descending.
+ *   3. For each subcategory, assign it to the area with the lowest current
+ *      load (LPT — classic 4/3-OPT approximation for makespan).
  *
- * If `existing` is provided, those assignments are honored as long as the
- * area indices are within range; remaining subcategories are auto-assigned.
+ * `.load` on AreaPlanArea now carries the total estimated match count,
+ * not the subcategory count, so downstream UIs that read it get the
+ * throughput-balanced view.
  */
 export function buildAreaPlan(
   input: AreaPlanInput,
@@ -58,31 +95,27 @@ export function buildAreaPlan(
     for (const sub of cat.subcategories) {
       const target = existing[sub.id];
       if (typeof target === "number" && target >= 0 && target < n) {
+        const cost = estimatedMatchCount(sub);
         areas[target]!.subcategoryIds.push(sub.id);
-        areas[target]!.load++;
+        areas[target]!.load += cost;
         assignments[sub.id] = target;
         claimed.add(sub.id);
       }
     }
   }
 
-  // Group remaining subcategories by category, ordered by descending size for
-  // better bin-packing.
-  type Group = { catId: string; subIds: string[] };
-  const groups: Group[] = [];
+  // Collect all unclaimed subcategories along with their estimated cost.
+  const pending: Array<{ sub: Subcategory; cost: number }> = [];
   for (const catId of input.categoryOrder) {
     const cat = input.categories[catId];
     if (!cat) continue;
-    const subIds = cat.subcategories
-      .map((s) => s.id)
-      .filter((id) => !claimed.has(id));
-    if (subIds.length > 0) groups.push({ catId, subIds });
+    for (const sub of cat.subcategories) {
+      if (claimed.has(sub.id)) continue;
+      pending.push({ sub, cost: estimatedMatchCount(sub) });
+    }
   }
-  groups.sort((a, b) => b.subIds.length - a.subIds.length);
-
-  const total = groups.reduce((acc, g) => acc + g.subIds.length, 0) +
-    Object.keys(assignments).length;
-  const fairShare = Math.ceil(total / n);
+  // LPT: heaviest first. Ties broken by id for stability.
+  pending.sort((a, b) => b.cost - a.cost || a.sub.id.localeCompare(b.sub.id));
 
   function lightestArea(): AreaPlanArea {
     let best = areas[0]!;
@@ -90,27 +123,11 @@ export function buildAreaPlan(
     return best;
   }
 
-  for (const group of groups) {
-    // Try to place the entire group together if at least one area has room.
-    const target = areas
-      .slice()
-      .sort((a, b) => a.load - b.load)
-      .find((a) => a.load + group.subIds.length <= fairShare);
-    if (target) {
-      for (const id of group.subIds) {
-        target.subcategoryIds.push(id);
-        target.load++;
-        assignments[id] = target.index;
-      }
-      continue;
-    }
-    // Otherwise spill into the currently-lightest areas one subcategory at a time.
-    for (const id of group.subIds) {
-      const a = lightestArea();
-      a.subcategoryIds.push(id);
-      a.load++;
-      assignments[id] = a.index;
-    }
+  for (const { sub, cost } of pending) {
+    const a = lightestArea();
+    a.subcategoryIds.push(sub.id);
+    a.load += cost;
+    assignments[sub.id] = a.index;
   }
 
   return { areas, assignments };
