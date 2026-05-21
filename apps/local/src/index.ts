@@ -6,7 +6,7 @@ import * as fs from "fs";
 import * as crypto from "crypto";
 import { type ServerConfig, defaultConfig } from "./config";
 import { ensureDir } from "./storage";
-import { loadOrCreateKeys, type KeyPair } from "./keys";
+import { loadOrCreateKeys, fetchCloudPublicKey, type KeyPair } from "./keys";
 import { buildRoutes } from "./routes";
 import { LicenseStore } from "./licenses";
 import { signLicenseToken } from "./auth";
@@ -39,6 +39,21 @@ export async function createServer(
   ensureDir(config.dataDir);
   ensureDir(path.join(config.dataDir, "uploads"));
   const keys = await loadOrCreateKeys(config.dataDir);
+  const cloudUrl = process.env.KARATE_CLOUD_URL?.replace(/\/+$/, "");
+  if (cloudUrl) {
+    const cloud = await fetchCloudPublicKey(cloudUrl, config.dataDir);
+    if (cloud) {
+      keys.publicKey = cloud.key;
+      keys.publicKeySpki = cloud.pem;
+      // eslint-disable-next-line no-console
+      console.log(`[karate-local] verifying JWTs with cloud public key from ${cloudUrl}`);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[karate-local] cloud public key unavailable; cloud-issued JWTs will fail to verify`,
+      );
+    }
+  }
   const licenses = new LicenseStore(config.dataDir);
 
   for (const seed of config.seedClaimCodes) {
