@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_note": "apps/web is statically exported into apps/web/out and bundled inside the apps/local binary. It is NOT meant to be deployed to Vercel as a standalone site — it has no backend, no WebSocket server, and no activation API. If Vercel auto-discovered this directory, delete the project. The Vercel target for this repo is apps/cloud.",
+  "ignoreCommand": "echo 'apps/web is bundled inside apps/local; do not deploy standalone' && exit 1"
+}
