@@ -112,12 +112,7 @@ export function Scoreboard({ state, variant }: Props) {
           ? "Time"
           : ""}
       </div>
-      {variant === "private" ? (
-        <div className="kb-hints">
-          Space: pause/resume · +/- adjust 1s · R/A select · 1/2/3 points · S
-          advantage · C penalty · Del undo
-        </div>
-      ) : null}
+      {variant === "private" ? <ShortcutsPanel /> : null}
     </div>
   );
 
@@ -168,6 +163,48 @@ export function Scoreboard({ state, variant }: Props) {
         )}
       </div>
     </>
+  );
+}
+
+function ShortcutsPanel() {
+  return (
+    <div className="shortcuts" aria-label="Keyboard shortcuts">
+      <Row label="pause / resume timer" keys={["Space"]} />
+      <Row label="adjust timer ±1s" keys={["+", "−"]} sep="/" />
+      <Row
+        label="select side, then add points"
+        keys={["A", "R"]}
+        sep="/"
+        suffix={<><span className="sep">→</span><span className="kbd">1</span><span className="kbd">2</span><span className="kbd">3</span></>}
+      />
+      <Row label="toggle advantage (after side)" keys={["S"]} />
+      <Row label="add penalty (after side)" keys={["C"]} accent />
+      <Row label="arm undo (next input subtracts)" keys={["Del"]} />
+      <Row label="advance match" keys={["Enter"]} />
+    </div>
+  );
+}
+
+function Row({
+  keys, label, sep, suffix, accent,
+}: {
+  keys: string[];
+  label: string;
+  sep?: string;
+  suffix?: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="shortcut-row">
+      {keys.map((k, i) => (
+        <span key={i} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+          {i > 0 && sep && <span className="sep">{sep}</span>}
+          <span className={`kbd${accent ? " accent" : ""}`}>{k}</span>
+        </span>
+      ))}
+      {suffix}
+      <span className="label" style={{ marginLeft: 6 }}>{label}</span>
+    </div>
   );
 }
 

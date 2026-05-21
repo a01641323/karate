@@ -638,13 +638,49 @@ body.match-kata .center { display: none !important; }
 .input-state .undo-tag { color: var(--color-gold); font-weight: 700; margin-left: 10px; }
 .input-state .countdown { color: var(--color-fg-2); margin-left: 12px; font-variant-numeric: tabular-nums; }
 
-.kb-hints {
-  font-size: 11px;
-  color: #555;
-  text-align: center;
-  margin-top: 8px;
-  letter-spacing: 1px;
+/* Keyboard shortcuts panel (replaces the legacy .kb-hints single-line) */
+.shortcuts {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
 }
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-fg-2);
+}
+.shortcut-row .label { color: var(--color-fg-2); }
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-fg);
+  letter-spacing: 0;
+}
+.kbd.accent { color: var(--color-accent); border-color: color-mix(in oklab, var(--color-accent) 50%, var(--color-line-strong)); }
+.kbd.blue   { color: var(--color-blue-bright); border-color: color-mix(in oklab, var(--color-blue-bright) 50%, var(--color-line-strong)); }
+.shortcut-row .sep { color: var(--color-fg-3); padding: 0 2px; }
+
+/* legacy .kb-hints kept around for older callers but neutralised */
+.kb-hints { display: none; }
 
 /* ============ modals ============ */
 .modal-overlay {
