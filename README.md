@@ -11,7 +11,8 @@ required on client machines.
 karate/
 ├── apps/
 │   ├── web/      Next.js 15 (App Router) + Tailwind — statically exported to apps/web/out
-│   └── local/    Express + JWT + WebSocket + tournament state engine (downloadable binary)
+│   ├── local/    Express + JWT + WebSocket + tournament state engine (downloadable binary)
+│   └── cloud/    Next.js app deployed on Vercel — token requests, admin panel, /api/activate (issues JWTs)
 ├── packages/
 │   └── core/     Pure tournament/engine logic + types (TypeScript)
 ├── legacy/       Original single-file prototype (preserved for reference)
