@@ -53,10 +53,21 @@ function getOrCreateClientId(): string {
 }
 
 function currentServerHttp(): string {
+  // 1. Per-session manual override (Connection Screen → manual IP).
   try {
     const override = localStorage.getItem(SERVER_URL_OVERRIDE_KEY);
     if (override) return override;
   } catch {}
+  // 2. Build-time override — set in apps/web/.env.local during dev so
+  //    `pnpm dev` on :3000 still hits the real Express/WS server on :4747.
+  //    Bundled into the static export at build time.
+  const envOverride =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_KARATE_SERVER_URL
+      : undefined;
+  if (envOverride) return envOverride;
+  // 3. Same-origin default — what production (binary) mode uses, since
+  //    apps/web is served by apps/local on :4747.
   return window.location.origin;
 }
 
