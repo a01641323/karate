@@ -31,19 +31,35 @@ server at `apps/local/dist/`.
 
 ## Starting the server
 
+For a tournament you've already paid / requested a code for, point the
+local app at the cloud so it can redeem the code:
+
+```bash
+cd apps/local
+KARATE_CLOUD_URL=https://karate-local.vercel.app pnpm start
+```
+
+Then open **<http://localhost:4747>** in your browser. The lock screen
+appears — paste the 6-digit code you got from
+`https://karate-local.vercel.app/request` and the app unlocks for 24 hours.
+
+If you want to run fully offline against a locally-issued claim code
+(developer mode, no cloud activation), drop the env var:
+
 ```bash
 pnpm start
 ```
 
-The server binds to `0.0.0.0:4747` and prints its reachable URLs on boot:
+Either way the server binds to `0.0.0.0:4747` and prints its reachable
+URLs on boot:
 
 ```
+[karate-local] verifying JWTs with cloud public key from https://karate-local.vercel.app
+[karate-server] listening on http://0.0.0.0:4747
 [karate-server] open on this machine:  http://localhost:4747
 [karate-server] open on the LAN:       http://192.168.1.42:4747
 [karate-server] admin panel:           http://localhost:4747/admin-panel
 ```
-
-Open `http://localhost:4747` in any modern browser to use the app.
 
 ### Accessing from other LAN machines
 
