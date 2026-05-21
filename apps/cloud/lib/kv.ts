@@ -1,62 +1,63 @@
-// Lazy Upstash Redis client. Accepts either env-var convention
-// Vercel might expose:
-//   - REST shape:   KV_REST_API_URL + KV_REST_API_TOKEN  (Vercel KV legacy)
-//                   or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
-//   - Protocol URL: REDIS_URL / KV_URL                   (Vercel Redis Marketplace)
+// Lazy Redis client built on ioredis. Speaks the Redis wire protocol
+// over TLS (port 443) which is what Vercel's first-party Redis offers
+// at *.db.redis.io. Also works with Upstash protocol URLs, Redis
+// Cloud, self-hosted Redis, etc.
 //
-// The protocol URL is parsed into the REST equivalent so a single
-// `@upstash/redis` client works regardless of which form is present.
+// JSON is serialized on set and parsed on get so the call-site API
+// matches the @upstash/redis convention the cloud was originally
+// written against.
 
-import { Redis } from "@upstash/redis";
+import Redis from "ioredis";
 
 let cached: Redis | null = null;
 
-function deriveRestFromRedisUrl(redisUrl: string): { url: string; token: string } | null {
-  try {
-    const parsed = new URL(redisUrl);
-    if (!parsed.hostname || !parsed.password) return null;
-    return {
-      url: `https://${parsed.hostname}`,
-      token: parsed.password,
-    };
-  } catch {
-    return null;
-  }
-}
-
 function makeClient(): Redis {
-  const restUrl =
-    process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-  const restToken =
-    process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (restUrl && restToken) {
-    cached = new Redis({ url: restUrl, token: restToken });
-    return cached;
+  const url = process.env.REDIS_URL ?? process.env.KV_URL;
+  if (!url) {
+    throw new Error(
+      "Redis is not configured. Set REDIS_URL (Vercel's Redis " +
+        "integration adds this automatically when you connect a database).",
+    );
   }
-
-  const protocolUrl = process.env.REDIS_URL ?? process.env.KV_URL;
-  if (protocolUrl) {
-    const derived = deriveRestFromRedisUrl(protocolUrl);
-    if (derived) {
-      cached = new Redis(derived);
-      return cached;
-    }
-  }
-
-  throw new Error(
-    "Redis is not configured. Provide either REDIS_URL, or " +
-      "KV_REST_API_URL + KV_REST_API_TOKEN, or " +
-      "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN.",
-  );
+  cached = new Redis(url, {
+    // Serverless: cap retries so a misconfigured URL fails fast.
+    maxRetriesPerRequest: 2,
+    enableReadyCheck: false,
+    connectTimeout: 8000,
+    lazyConnect: false,
+  });
+  return cached;
 }
 
-export const kv: Redis = new Proxy({} as Redis, {
-  get(_target, prop) {
-    const client = cached ?? makeClient();
-    return Reflect.get(client, prop, client);
+function client(): Redis {
+  return cached ?? makeClient();
+}
+
+export const kv = {
+  async get<T = unknown>(key: string): Promise<T | null> {
+    const raw = await client().get(key);
+    if (raw === null) return null;
+    try { return JSON.parse(raw) as T; }
+    catch { return raw as unknown as T; }
   },
-});
+  async set(key: string, value: unknown): Promise<void> {
+    await client().set(key, JSON.stringify(value));
+  },
+  async del(key: string): Promise<number> {
+    return client().del(key);
+  },
+  async sadd(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) return 0;
+    return client().sadd(key, ...members);
+  },
+  async smembers(key: string): Promise<string[]> {
+    return client().smembers(key);
+  },
+  async srem(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) return 0;
+    return client().srem(key, ...members);
+  },
+};
 
 export const keys = {
   request: (id: string) => `req:${id}`,
