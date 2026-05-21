@@ -121,8 +121,11 @@ export function buildRoutes(
 
       // Cloud proxy mode.
       if (cloudUrl) {
+        const upstreamUrl = `${cloudUrl}/api/activate`;
         try {
-          const upstream = await fetch(`${cloudUrl}/api/activate`, {
+          // eslint-disable-next-line no-console
+          console.log(`[karate-local] proxying /api/activate → ${upstreamUrl}`);
+          const upstream = await fetch(upstreamUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ code: rawCode, machineFingerprint }),
@@ -149,6 +152,14 @@ export function buildRoutes(
           }
         } catch (err) {
           activateLimiter.recordFailure(req);
+          const detail = (err as Error)?.message ?? "fetch_failed";
+          const cause = (err as { cause?: { code?: string; message?: string } })?.cause;
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[karate-local] activate proxy failed → ${upstreamUrl}\n` +
+              `  reason: ${detail}\n` +
+              `  cause: ${cause?.code ?? "(none)"} ${cause?.message ?? ""}`,
+          );
           logActivity(config.dataDir, {
             ts: Date.now(), event: "ACTIVATION_FAILURE", userId: null,
             ip, machineFingerprint, jti: null, result: "fail",
@@ -157,7 +168,7 @@ export function buildRoutes(
           res.status(502).json({
             error: "CLOUD_UNREACHABLE",
             message: "Cannot reach licensing server. Check internet and retry.",
-            detail: (err as Error)?.message ?? "fetch_failed",
+            detail,
           });
         }
         return;
