@@ -93,7 +93,19 @@ export function buildRoutes(
 
   // ---------------------------------------------------------------
   // POST /api/activate — redeem claim code, issue JWT
+  //
+  // Two modes:
+  //   1. Cloud-proxy mode (KARATE_CLOUD_URL set): forward to the
+  //      Vercel-hosted licensing authority. The cloud signs the JWT;
+  //      this binary just verifies it later against the embedded
+  //      public key (see lib/cloud-key, future PR).
+  //   2. Local mode (no env var): legacy behavior — sign JWTs with
+  //      this machine's own Ed25519 key against the in-process
+  //      LicenseStore. Kept for dev so `pnpm dev` still works
+  //      end-to-end without a deployed cloud.
   // ---------------------------------------------------------------
+  const cloudUrl = process.env.KARATE_CLOUD_URL?.replace(/\/+$/, "") ?? "";
+
   router.post(
     "/api/activate",
     activateLimiter.middleware,
@@ -107,6 +119,51 @@ export function buildRoutes(
           ? body.machineFingerprint.trim()
           : "";
 
+      // Cloud proxy mode.
+      if (cloudUrl) {
+        try {
+          const upstream = await fetch(`${cloudUrl}/api/activate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: rawCode, machineFingerprint }),
+          });
+          const text = await upstream.text();
+          res.status(upstream.status).type(upstream.headers.get("content-type") ?? "application/json").send(text);
+          activateLimiter[upstream.ok ? "recordSuccess" : "recordFailure"](req);
+          if (upstream.ok) {
+            try {
+              const parsed = JSON.parse(text) as { payload?: { sub?: string; jti?: string } };
+              logActivity(config.dataDir, {
+                ts: Date.now(), event: "ACTIVATION_SUCCESS",
+                userId: parsed.payload?.sub ?? null,
+                ip, machineFingerprint, jti: parsed.payload?.jti ?? null,
+                result: "success", message: "cloud_proxy",
+              });
+            } catch { /* response wasn't JSON; still 200 */ }
+          } else {
+            logActivity(config.dataDir, {
+              ts: Date.now(), event: "ACTIVATION_FAILURE", userId: null,
+              ip, machineFingerprint, jti: null, result: "fail",
+              reason: `cloud_${upstream.status}`,
+            });
+          }
+        } catch (err) {
+          activateLimiter.recordFailure(req);
+          logActivity(config.dataDir, {
+            ts: Date.now(), event: "ACTIVATION_FAILURE", userId: null,
+            ip, machineFingerprint, jti: null, result: "fail",
+            reason: "cloud_unreachable",
+          });
+          res.status(502).json({
+            error: "CLOUD_UNREACHABLE",
+            message: "Cannot reach licensing server. Check internet and retry.",
+            detail: (err as Error)?.message ?? "fetch_failed",
+          });
+        }
+        return;
+      }
+
+      // Local mode (legacy).
       if (!/^\d{6}$/.test(rawCode)) {
         activateLimiter.recordFailure(req);
         logActivity(config.dataDir, {
@@ -201,126 +258,12 @@ export function buildRoutes(
   );
 
   // ---------------------------------------------------------------
-  // POST /api/renew-token — rotate JWT for an active lineage
+  // /api/renew-token — REMOVED. Per the per-tournament one-shot
+  // licensing model, expired sessions force a new code from the
+  // cloud. See docs/superpowers/specs/2026-05-20-vercel-licensing-
+  // flow-design.md. The endpoint is intentionally absent so a stale
+  // renderer surfaces a 404 and the lock screen takes over.
   // ---------------------------------------------------------------
-  router.post(
-    "/api/renew-token",
-    renewLimiter.middleware,
-    async (req: Request, res: Response) => {
-      const ip = clientIp(req);
-      const body = (req.body ?? {}) as {
-        currentJwt?: unknown; machineFingerprint?: unknown;
-      };
-      const currentJwt = typeof body.currentJwt === "string" ? body.currentJwt : "";
-      const machineFingerprint =
-        typeof body.machineFingerprint === "string"
-          ? body.machineFingerprint.trim()
-          : "";
-
-      if (!currentJwt || !machineFingerprint) {
-        res.status(400).json({ error: "missing_field" });
-        return;
-      }
-
-      // Renewal accepts JWTs that are within a short past-expiry window so
-      // a client that woke up after a long sleep can still recover. jose's
-      // jwtVerify will reject `exp <= now`, so we manually parse the
-      // payload for renewal and re-verify the signature without exp.
-      const { jwtVerify, decodeJwt } = await import("jose");
-      let claims: Awaited<ReturnType<typeof decodeJwt>>;
-      try { claims = decodeJwt(currentJwt); }
-      catch {
-        res.status(401).json({ error: "invalid_token" });
-        return;
-      }
-      try {
-        await jwtVerify(currentJwt, keys.publicKey, {
-          algorithms: ["EdDSA"],
-          issuer: "https://api.karate-tournament.app",
-          audience: "karate-tournament-app",
-          // Allow renewal within 7 days of expiry.
-          clockTolerance: "7 days",
-        });
-      } catch {
-        res.status(401).json({ error: "invalid_token" });
-        return;
-      }
-
-      const jti = String(claims.jti ?? "");
-      const sub = String(claims.sub ?? "");
-      const tokenFp = String((claims as Record<string, unknown>)["machine_fp"] ?? "");
-      const record = licenses.findByUserId(sub);
-
-      if (!record) {
-        logActivity(config.dataDir, {
-          ts: Date.now(), event: "RENEWAL_FAILURE", userId: sub,
-          ip, machineFingerprint, jti, result: "fail", reason: "USER_NOT_FOUND",
-        });
-        res.status(401).json({ error: "ACCESS_REVOKED" });
-        return;
-      }
-
-      if (record.revoked || licenses.isRevoked(jti)) {
-        logActivity(config.dataDir, {
-          ts: Date.now(), event: "RENEWAL_REJECTED_REVOKED", userId: sub,
-          ip, machineFingerprint, jti, result: "fail", reason: "ACCESS_REVOKED",
-        });
-        res.status(401).json({ error: "ACCESS_REVOKED" });
-        return;
-      }
-
-      if (record.expiresAt < Date.now()) {
-        logActivity(config.dataDir, {
-          ts: Date.now(), event: "RENEWAL_REJECTED_REVOKED", userId: sub,
-          ip, machineFingerprint, jti, result: "fail", reason: "CODE_EXPIRED",
-        });
-        res.status(401).json({ error: "ACCESS_REVOKED" });
-        return;
-      }
-
-      if (record.machineFingerprint !== machineFingerprint || tokenFp !== machineFingerprint) {
-        logActivity(config.dataDir, {
-          ts: Date.now(), event: "MACHINE_MISMATCH", userId: sub,
-          ip, machineFingerprint, jti, result: "fail",
-        });
-        res.status(403).json({ error: "MACHINE_MISMATCH" });
-        return;
-      }
-
-      const activatedAt = record.activatedAt
-        ? Math.floor(record.activatedAt / 1000)
-        : Math.floor(Date.now() / 1000);
-
-      const fresh = await signLicenseToken(deps, {
-        userId: record.userId,
-        role: record.role,
-        features: record.features,
-        plan: record.plan,
-        machineFingerprint,
-        activatedAt,
-      });
-      licenses.rotateJti(record.codeId, fresh.payload.jti);
-
-      logActivity(config.dataDir, {
-        ts: Date.now(), event: "RENEWAL_SUCCESS", userId: sub,
-        ip, machineFingerprint, jti: fresh.payload.jti, result: "success",
-      });
-
-      res.json({
-        token: fresh.token,
-        payload: {
-          sub: fresh.payload.sub,
-          role: fresh.payload.role,
-          features: fresh.payload.features,
-          plan: fresh.payload.plan,
-          activated_at: fresh.payload.activated_at,
-          exp: fresh.payload.exp,
-          iat: fresh.payload.iat,
-          jti: fresh.payload.jti,
-        },
-      });
-    }
-  );
 
   // ---------------------------------------------------------------
   // Tournament data
@@ -478,85 +421,15 @@ export function buildRoutes(
   // Claim codes are referee-only; superadmin access is granted by the
   // local stealth chord (no role-bearing JWT involved).
   // ---------------------------------------------------------------
+  // Read-only inspect of this machine's cached licenses. Useful for
+  // support; safe to keep on the local app.
   router.get("/api/admin/licenses", localAdmin, (_req: Request, res: Response) => {
     res.json({ licenses: licenses.list() });
   });
 
-  router.post(
-    "/api/admin/licenses",
-    localAdmin,
-    (req: Request, res: Response) => {
-      const body = (req.body ?? {}) as {
-        features?: Feature[]; label?: string;
-        ttlMinutes?: number; plan?: string;
-      };
-      const role: Role = "referee";
-      const features = Array.isArray(body.features) && body.features.length
-        ? body.features
-        : FEATURE_PRESETS[role];
-      const label = (body.label ?? "").trim() || `${role}-${Date.now()}`;
-      const ttlMs = Math.max(1, Number(body.ttlMinutes ?? 43200)) * 60 * 1000;
-      const plan = body.plan ?? role;
-      const { code, record } = licenses.createCode({
-        role, features, label, ttlMs, plan,
-      });
-      logActivity(config.dataDir, {
-        ts: Date.now(), event: "LICENSE_CODE_CREATED", userId: record.userId,
-        ip: clientIp(req), jti: null, result: "success",
-        message: `role=${role} label=${label}`,
-      });
-      res.json({ code, userId: record.userId, label, role, features, expiresAt: record.expiresAt });
-    }
-  );
-
-  router.post(
-    "/api/admin/licenses/:userId/revoke",
-    localAdmin,
-    (req: Request, res: Response) => {
-      const codeId = licenses.findCodeIdByUserId(req.params.userId);
-      if (!codeId) { res.status(404).json({ error: "not_found" }); return; }
-      licenses.revokeLineage(codeId);
-      logActivity(config.dataDir, {
-        ts: Date.now(), event: "LICENSE_REVOKE", userId: req.params.userId,
-        ip: clientIp(req), jti: null, result: "success",
-      });
-      res.json({ ok: true });
-    }
-  );
-
-  router.post(
-    "/api/admin/licenses/:userId/transfer",
-    localAdmin,
-    (req: Request, res: Response) => {
-      const codeId = licenses.findCodeIdByUserId(req.params.userId);
-      if (!codeId) { res.status(404).json({ error: "not_found" }); return; }
-      licenses.transfer(codeId);
-      logActivity(config.dataDir, {
-        ts: Date.now(), event: "LICENSE_TRANSFER", userId: req.params.userId,
-        ip: clientIp(req), jti: null, result: "success",
-      });
-      res.json({ ok: true });
-    }
-  );
-
-  router.post(
-    "/api/admin/licenses/:userId/extend",
-    localAdmin,
-    (req: Request, res: Response) => {
-      const minutes = Math.max(1, Number((req.body ?? {}).minutes ?? 43200));
-      const codeId = licenses.findCodeIdByUserId(req.params.userId);
-      if (!codeId) { res.status(404).json({ error: "not_found" }); return; }
-      const newExpiry = Date.now() + minutes * 60 * 1000;
-      const ok = licenses.extendExpiry(codeId, newExpiry);
-      if (!ok) { res.status(409).json({ error: "already_redeemed" }); return; }
-      logActivity(config.dataDir, {
-        ts: Date.now(), event: "LICENSE_EXTEND", userId: req.params.userId,
-        ip: clientIp(req), jti: null, result: "success",
-        message: `+${minutes}min`,
-      });
-      res.json({ ok: true, expiresAt: newExpiry });
-    }
-  );
+  // Create / revoke / transfer / extend used to live here. They now
+  // live on the Vercel-hosted cloud (apps/cloud). The local binary
+  // intentionally cannot mint or rotate codes.
 
   // ---------------------------------------------------------------
   // Custom DMG builder (used by the superadmin to ship a pre-seeded

@@ -7,7 +7,7 @@ import type {
   AuthUser, Role, LicenseState, LicensePublic, LicenseDegradedReason,
 } from "@karate/core";
 import type { ConnectTarget } from "./api-client";
-import { apiActivate, apiRenewToken, apiMe, ApiError } from "./api-client";
+import { apiActivate, apiMe, ApiError } from "./api-client";
 import { getBrowserFingerprint } from "./browser-fingerprint";
 import { setToken as secureSetToken, getToken as secureGetToken, clearToken as secureClearToken } from "./secure-storage";
 
@@ -68,6 +68,32 @@ function randHex(bytes: number): string {
   const buf = new Uint8Array(bytes);
   if (typeof crypto !== "undefined") crypto.getRandomValues(buf);
   return Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+interface JwtClaims {
+  sub: string;
+  role: AuthUser["role"];
+  features: AuthUser["features"];
+  plan: string;
+  exp: number;
+  iat: number;
+  jti: string;
+  activated_at?: number;
+}
+
+// Best-effort JWT payload decode. We don't verify the signature here
+// because the local server (and ultimately the cloud) already verifies
+// on every authenticated request; we only need the claim values to
+// hydrate the UI from a cached token at boot.
+function decodeJwtClaims(jwt: string): JwtClaims | null {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length < 2) return null;
+    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json) as JwtClaims;
+  } catch {
+    return null;
+  }
 }
 
 // Cached fingerprint snapshot. Synchronous helpers fall back to this
@@ -206,23 +232,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await secureGetToken();
       const cached = readSessionToken();
       if (cached) {
-        try {
-          const renewed = await apiRenewToken(cached, getBrowserMachineFp());
-          persistSessionToken(renewed.token);
+        // Per-tournament one-shot model: no renewal endpoint. Trust the
+        // cached JWT until its exp arrives; the lock-screen takes over
+        // once it's stale.
+        const claims = decodeJwtClaims(cached);
+        const stillValid = claims && claims.exp * 1000 > Date.now();
+        if (stillValid) {
           if (!mounted) return;
-          setToken(renewed.token);
+          setToken(cached);
           setLicenseState({
             kind: "active",
             license: {
-              role: renewed.payload.role,
-              features: renewed.payload.features,
-              plan: renewed.payload.plan,
-              expiresAt: renewed.payload.exp * 1000,
-              activatedAt: renewed.payload.activated_at * 1000,
-              jti: renewed.payload.jti,
+              role: claims!.role,
+              features: claims!.features,
+              plan: claims!.plan,
+              expiresAt: claims!.exp * 1000,
+              activatedAt: (claims!.activated_at ?? claims!.iat) * 1000,
+              jti: claims!.jti,
             },
           });
-        } catch {
+        } else {
           clearSessionToken();
           if (!mounted) return;
           setLicenseState({ kind: "unlicensed" });
@@ -358,28 +387,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(envelope?.token ?? null);
       return;
     }
+    // No renewal endpoint in the per-tournament model. "Retry" just
+    // re-evaluates the cached JWT; if it's still valid, restore; if
+    // expired, force re-activation.
     const cached = readSessionToken();
-    if (!cached) return;
-    try {
-      const r = await apiRenewToken(cached, machineFp ?? getBrowserMachineFp());
-      persistSessionToken(r.token);
-      setToken(r.token);
+    if (!cached) {
+      setLicenseState({ kind: "unlicensed" });
+      return;
+    }
+    const claims = decodeJwtClaims(cached);
+    if (claims && claims.exp * 1000 > Date.now()) {
+      setToken(cached);
       setLicenseState({
         kind: "active",
         license: {
-          role: r.payload.role,
-          features: r.payload.features,
-          plan: r.payload.plan,
-          expiresAt: r.payload.exp * 1000,
-          activatedAt: r.payload.activated_at * 1000,
-          jti: r.payload.jti,
+          role: claims.role,
+          features: claims.features,
+          plan: claims.plan,
+          expiresAt: claims.exp * 1000,
+          activatedAt: (claims.activated_at ?? claims.iat) * 1000,
+          jti: claims.jti,
         },
       });
-    } catch {
+    } else {
       clearSessionToken();
-      setLicenseState({ kind: "degraded", reason: "REVOKED", lastRole: null });
+      setLicenseState({ kind: "unlicensed" });
     }
-  }, [machineFp]);
+  }, []);
 
   const logout = useCallback(() => {
     clearSessionToken();

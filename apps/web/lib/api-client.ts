@@ -220,16 +220,6 @@ export async function apiActivate(code: string, machineFingerprint: string): Pro
   });
 }
 
-export async function apiRenewToken(
-  currentJwt: string,
-  machineFingerprint: string,
-): Promise<ActivationResponse> {
-  return apiRequest<ActivationResponse>("/api/renew-token", {
-    method: "POST",
-    body: { currentJwt, machineFingerprint },
-  });
-}
-
 export async function apiMe(token: string): Promise<{ user: AuthUser; jti: string; exp: number }> {
   return apiRequest("/api/me", { token });
 }
