@@ -507,7 +507,7 @@ body.is-public .split {
   height: calc(100vh - 22px);
   grid-template-columns: 1fr 520px 1fr;
 }
-body.is-private .split { display: grid; }
+body.is-private .split { display: grid; height: 100%; min-height: 0; }
 
 .side {
   display: flex;
@@ -587,9 +587,9 @@ body.is-private .split { display: grid; }
   transition: all 0.15s;
 }
 .penalty.on {
-  background: #FFFFFF;
-  border-color: #FFFFFF;
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.5);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--color-accent) 60%, transparent);
 }
 .role-tag {
   position: absolute;
@@ -712,6 +712,29 @@ body.match-kata .center { display: none !important; }
   background: color-mix(in oklab, var(--color-accent) 22%, var(--color-bg-2));
   border-color: color-mix(in oklab, var(--color-accent) 50%, var(--color-line-strong));
   color: #FFFFFF;
+}
+.private-controls .reset-btn {
+  background: color-mix(in oklab, var(--color-amber) 22%, var(--color-bg-2));
+  border-color: color-mix(in oklab, var(--color-amber) 55%, var(--color-line-strong));
+  color: var(--color-amber);
+}
+.private-controls .reset-btn:hover { filter: brightness(1.1); }
+
+/* Private view is a fixed-height stack: topbar + next-match panel +
+   input-state + scoreboard + private-controls. Each piece reserves
+   its row in the grid so no element ever scrolls off the screen. */
+#view-private {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+#view-private .split {
+  height: auto;
+  min-height: 0;
+}
+#view-private .private-controls {
+  flex-shrink: 0;
 }
 
 .input-state {

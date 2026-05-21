@@ -49,11 +49,14 @@ export function KeyboardHandler({ suppress }: Props) {
   };
 
   const select = (side: "blue" | "red") => {
-    inputRef.current = { selected: side, undoArmed: false, expiresAt: Date.now() + 5000 };
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(reset, 5000);
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-    intervalRef.current = window.setInterval(() => setTick((x) => x + 1), 200);
+    // Sticky selection — no auto-expiry. Selection persists until the user
+    // picks the other side, presses Esc, or a new match is loaded. The
+    // previous 5-second timeout was confusing in practice: you'd click a
+    // match in the bracket, miss the window, and then 1/2/3 stopped
+    // responding until you re-pressed R or A.
+    inputRef.current = { selected: side, undoArmed: false, expiresAt: 0 };
+    if (timeoutRef.current) { window.clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (intervalRef.current) { window.clearInterval(intervalRef.current); intervalRef.current = null; }
     setTick((x) => x + 1);
   };
 
@@ -110,66 +113,70 @@ export function KeyboardHandler({ suppress }: Props) {
         return;
       }
       const cur = inputRef.current;
+      // Esc clears the sticky side selection.
+      if (key === "Escape") {
+        reset();
+        return;
+      }
       if (!cur.selected) return;
 
       if (key === k.undo) {
         cur.undoArmed = !cur.undoArmed;
-        if (cur.undoArmed) {
-          cur.expiresAt = Date.now() + 5000;
-          if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-          timeoutRef.current = window.setTimeout(reset, 5000);
-        }
         setTick((x) => x + 1);
         return;
       }
       const sign = cur.undoArmed ? -1 : 1;
       const sel = cur.selected;
+      // Score / penalty / senshu actions keep the side selected after firing
+      // so the operator can rapid-fire multiple inputs on the same fighter
+      // without re-pressing R or A every time. Only the undo-armed flag
+      // resets (single-use).
       if (lk === norm(k.add1)) {
-        e.preventDefault(); addPoints(sel, 1 * sign); reset(); return;
+        e.preventDefault(); addPoints(sel, 1 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
       }
       if (lk === norm(k.add2)) {
-        e.preventDefault(); addPoints(sel, 2 * sign); reset(); return;
+        e.preventDefault(); addPoints(sel, 2 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
       }
       if (lk === norm(k.add3)) {
-        e.preventDefault(); addPoints(sel, 3 * sign); reset(); return;
+        e.preventDefault(); addPoints(sel, 3 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
       }
       if (lk === norm(k.senshu)) {
         if (isKata) return;
         e.preventDefault();
         setAdvantage(sel, !cur.undoArmed);
-        reset();
+        cur.undoArmed = false;
+        setTick((x) => x + 1);
         return;
       }
       if (lk === norm(k.penalty)) {
         if (isKata) return;
         e.preventDefault();
         addPenalty(sel, sign);
-        reset();
+        cur.undoArmed = false;
+        setTick((x) => x + 1);
         return;
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    // Capture phase so a focused bracket-button (Space → re-fires its
+    // click) doesn't steal Space/Enter from us.
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [state, addPoints, setAdvantage, addPenalty, adjustTimer, togglePause, advanceActiveMatch, suppress, actionable]);
 
   // input-state hint banner
   const cur = inputRef.current;
   void tick;
-  let content: React.ReactNode = "Waiting…";
+  let content: React.ReactNode = (
+    <span className="muted">Press <kbd className="kbd">A</kbd> or <kbd className="kbd">R</kbd> to select a side</span>
+  );
   if (cur.selected) {
-    const remaining = Math.max(
-      0,
-      Math.ceil((cur.expiresAt - Date.now()) / 1000)
-    );
     content = (
       <>
-        <span
-          className={cur.selected === "red" ? "red-tag" : "blue-tag"}
-        >
+        <span className={cur.selected === "red" ? "red-tag" : "blue-tag"}>
           {cur.selected === "red" ? "Red selected" : "Blue selected"}
         </span>{" "}
-        {cur.undoArmed ? <span className="undo-tag">UNDO</span> : null}{" "}
-        <span className="countdown">{remaining}s</span>
+        {cur.undoArmed ? <span className="undo-tag">UNDO armed</span> : null}{" "}
+        <span className="muted countdown">Esc to clear</span>
       </>
     );
   }

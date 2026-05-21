@@ -62,7 +62,7 @@ export function AdminSidebar({ onOpenTournamentSettings }: Props) {
                     : `${cat.competitors.length} · ${visibleSubs.length}`}
                 </span>
               </button>
-              {isActiveCat && isLocked ? (
+              {isLocked ? (
                 <div className="cat-locked-note">
                   <span className="lock-icon" aria-hidden>⛌</span>
                   <div>
@@ -71,7 +71,7 @@ export function AdminSidebar({ onOpenTournamentSettings }: Props) {
                   </div>
                 </div>
               ) : null}
-              {isActiveCat && !isLocked ? (
+              {!isLocked ? (
                 <div className="subcat-list">
                   {visibleSubs.map((sub) => {
                     const status = subcategoryStatus(sub);

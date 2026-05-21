@@ -46,7 +46,21 @@ const handlers: Record<string, Handler> = {
   ADD_PENALTY(s, { side, delta }) {
     const key = side === "blue" ? "bluePenalties" : "redPenalties";
     s.match[key] = clamp(s.match[key] + delta, 0, 5);
-    if (s.match[key] === 5 && delta > 0) s.timer.running = false;
+    if (s.match[key] === 5 && delta > 0) {
+      // 5 penalties = hansoku (disqualification). Opponent wins immediately;
+      // timer freezes wherever it was and the bracket auto-advances.
+      s.timer.running = false;
+      const ref = s.match.activeMatchRef;
+      if (ref) {
+        const winnerName = side === "blue" ? s.match.redName : s.match.blueName;
+        const loserName  = side === "blue" ? s.match.blueName : s.match.redName;
+        if (winnerName) {
+          (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
+          const next = (core as any).findNextMatch(s, ref);
+          if (next) (core as any).loadMatchToScoreboardImpl(s, next);
+        }
+      }
+    }
   },
   SET_ADVANTAGE(s, { side, value }) {
     if (side === "blue") s.match.blueAdvantage = !!value;
