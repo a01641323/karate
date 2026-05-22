@@ -75,7 +75,6 @@ export function Footer() {
           <Link href="/request">Solicitar</Link>
           <Link href="/download">Descargar</Link>
           <Link href="/#how">Cómo funciona</Link>
-          <a href="https://github.com/a01641323/karate" target="_blank" rel="noreferrer">GitHub</a>
         </div>
         <div className="footer-meta">© 2026 · Sistema oficial de torneo</div>
       </div>

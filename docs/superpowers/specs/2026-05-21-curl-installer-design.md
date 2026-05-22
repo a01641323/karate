@@ -4,7 +4,7 @@
 
 Today an operator who wants to run the local server has to:
 
-1. Clone `a01641323/karate`.
+1. Clone `<owner>/<repo>`.
 2. Install Node 20 + pnpm.
 3. Run `pnpm install && pnpm build`.
 4. `cd apps/local && pnpm start`.

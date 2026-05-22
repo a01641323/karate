@@ -194,8 +194,8 @@ GITHUB_CLIENT_SECRET     OAuth app
 SUPERADMIN_GITHUB_ID     numeric GitHub user ID — ONLY id allowed in /admin
 AUTH_SECRET              32-byte hex for Auth.js
 COOKIE_SECRET            32-byte hex for request-cookie HMAC
-GITHUB_RELEASE_PAT       fine-scoped PAT, read-only on releases of a01641323/karate
-GITHUB_RELEASE_REPO      "a01641323/karate"
+GITHUB_RELEASE_PAT       fine-scoped PAT, read-only on releases of <owner>/<repo>
+GITHUB_RELEASE_REPO      "<owner>/<repo>"
 ```
 
 ### Reused from existing code
