@@ -190,15 +190,52 @@ export function makeServer(opts: WSServerOptions): WSServer {
   function startTimerTick() {
     if (timerInterval) return;
     timerInterval = setInterval(() => {
-      const s = store.getState();
-      const t = s.timer;
-      if (!t.running || t.remaining <= 0) return;
-      if (s.match.discipline === "kata") return;
-      const next = t.remaining - 1;
-      t.remaining = Math.max(0, next);
-      if (prevTimerRemaining > 15 && t.remaining === 15) t.warnedAt = Date.now();
-      if (t.remaining === 0) { t.running = false; t.finished = true; t.expiredAt = Date.now(); }
-      prevTimerRemaining = t.remaining;
+      const s: any = store.getState();
+      // Walk EVERY area's timer slot. The legacy s.timer / s.match is
+      // mirrored from area 0 by the action reducer's withArea wrapper,
+      // so ticking timersByArea covers every console.
+      const timersByArea: Record<number, any> = s.timersByArea ?? {};
+      const matchesByArea: Record<number, any> = s.matchesByArea ?? {};
+      let anyChange = false;
+      const slots: Array<{ idx: number; t: any; m: any }> = [];
+      const keys = Object.keys(timersByArea);
+      if (keys.length === 0) {
+        // No per-area slots have been initialized yet — fall back to
+        // the legacy global timer (single-console / standalone mode).
+        slots.push({ idx: 0, t: s.timer, m: s.match });
+      } else {
+        for (const k of keys) {
+          const idx = Number(k);
+          slots.push({
+            idx,
+            t: timersByArea[idx],
+            m: matchesByArea[idx] ?? s.match,
+          });
+        }
+      }
+      for (const { idx, t, m } of slots) {
+        if (!t || !t.running || t.remaining <= 0) continue;
+        if (m && m.discipline === "kata") continue;
+        const next = t.remaining - 1;
+        t.remaining = Math.max(0, next);
+        if (idx === 0 && prevTimerRemaining > 15 && t.remaining === 15) {
+          t.warnedAt = Date.now();
+        } else if (idx !== 0 && t.remaining === 15) {
+          // First time crossing 15s on a non-area-0 timer.
+          t.warnedAt = t.warnedAt ?? Date.now();
+        }
+        if (t.remaining === 0) {
+          t.running = false; t.finished = true; t.expiredAt = Date.now();
+        }
+        if (idx === 0) {
+          prevTimerRemaining = t.remaining;
+          // Mirror to legacy top-level so /public scoreboard fallback +
+          // any unmigrated reader still sees something.
+          s.timer = t;
+        }
+        anyChange = true;
+      }
+      if (!anyChange) return;
       store.replaceAll(s);
       broadcastState();
     }, 1000);
