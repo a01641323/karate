@@ -19,7 +19,28 @@ karate/
 └── mock-participants.csv
 ```
 
-## Installation
+## Install (operators)
+
+One line. Detects your OS, downloads the binary, launches it, opens
+`localhost:4747` in your browser. State persists at `~/.kumiteos/data/`
+so re-running the installer is non-destructive.
+
+**macOS / Linux**
+
+```bash
+curl -fsSL https://kumiteos.vercel.app/install.sh | sh
+```
+
+**Windows · PowerShell**
+
+```powershell
+iwr -useb https://kumiteos.vercel.app/install.ps1 | iex
+```
+
+Paste your 6-digit access code in the lock screen (request one from
+`https://kumiteos.vercel.app/request`).
+
+## Install (contributors / source build)
 
 ```bash
 pnpm install
@@ -27,24 +48,15 @@ pnpm build
 ```
 
 The build produces a static frontend at `apps/web/out/` and a compiled
-server at `apps/local/dist/`.
-
-## Starting the server
-
-For a tournament you've already paid / requested a code for, point the
-local app at the cloud so it can redeem the code:
+server at `apps/local/dist/`. Run the server from source:
 
 ```bash
 cd apps/local
 KARATE_CLOUD_URL=https://kumiteos.vercel.app pnpm start
 ```
 
-Then open **<http://localhost:4747>** in your browser. The lock screen
-appears — paste the 6-digit code you got from
-`https://kumiteos.vercel.app/request` and the app unlocks for 24 hours.
-
-If you want to run fully offline against a locally-issued claim code
-(developer mode, no cloud activation), drop the env var:
+Drop the env var to run fully offline against a locally-issued claim
+code (no cloud activation):
 
 ```bash
 pnpm start

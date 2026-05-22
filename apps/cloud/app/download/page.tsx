@@ -33,6 +33,41 @@ export default function DownloadPage() {
           <div className="section-meta">v1.0 · OFICIAL</div>
         </div>
 
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-head">
+            <span className="card-eyebrow">UNA SOLA LÍNEA</span>
+            <span className="card-meta">Recomendado</span>
+          </div>
+          <p style={{ color: "var(--color-fg-2)", fontSize: 14, lineHeight: 1.5, marginBottom: 12 }}>
+            Detecta tu sistema, descarga el binario, lo lanza y abre
+            <code style={{ fontFamily: "var(--font-mono)", padding: "2px 6px", background: "color-mix(in oklab, var(--color-fg) 8%, transparent)" }}> localhost:4747 </code>
+            en el navegador. Pega tu código y listo.
+          </p>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--color-fg-2)", marginBottom: 4, fontFamily: "var(--font-mono)", letterSpacing: 0.5 }}>macOS / Linux</div>
+              <pre style={{ background: "color-mix(in oklab, var(--color-fg) 6%, transparent)", padding: 12, borderRadius: 6, overflowX: "auto", fontSize: 13, fontFamily: "var(--font-mono)", margin: 0 }}>
+{`curl -fsSL https://kumiteos.vercel.app/install.sh | sh`}
+              </pre>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--color-fg-2)", marginBottom: 4, fontFamily: "var(--font-mono)", letterSpacing: 0.5 }}>Windows · PowerShell</div>
+              <pre style={{ background: "color-mix(in oklab, var(--color-fg) 6%, transparent)", padding: 12, borderRadius: 6, overflowX: "auto", fontSize: 13, fontFamily: "var(--font-mono)", margin: 0 }}>
+{`iwr -useb https://kumiteos.vercel.app/install.ps1 | iex`}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <div className="section-head" style={{ marginTop: 32, marginBottom: 16 }}>
+          <div className="section-titles">
+            <h3 className="section-title" style={{ fontSize: 18 }}>Descarga manual</h3>
+            <p className="section-sub" style={{ fontSize: 13 }}>
+              Si el instalador no funciona en tu entorno, bajá el binario directo.
+            </p>
+          </div>
+        </div>
+
         <div className="download-grid">
           {TARGETS.map((t) => (
             <div className="card store-card" key={t.os}>
