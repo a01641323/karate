@@ -10,6 +10,16 @@ interface InputState {
   expiresAt: number;
 }
 
+interface LastAction {
+  kind: "score" | "penalty" | "advantage";
+  side: "blue" | "red";
+  /** Magnitude of the delta that landed (+1/+2/+3 for score, +1 for penalty). */
+  delta: number;
+  ts: number;
+}
+
+const UNDO_WINDOW_MS = 10_000;
+
 interface Props {
   /** When true, all keyboard input is suppressed (e.g. modal open). */
   suppress: boolean;
@@ -34,6 +44,13 @@ export function KeyboardHandler({ suppress }: Props) {
   });
   const timeoutRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
+  // The most recent score/penalty/advantage we sent. Backspace/Del with
+  // no side selected reverses this if it landed within UNDO_WINDOW_MS.
+  const lastActionRef = useRef<LastAction | null>(null);
+
+  function recordAction(kind: LastAction["kind"], side: "blue" | "red", delta: number) {
+    lastActionRef.current = { kind, side, delta, ts: Date.now() };
+  }
 
   const reset = () => {
     inputRef.current = { selected: null, undoArmed: false, expiresAt: 0 };
@@ -82,6 +99,8 @@ export function KeyboardHandler({ suppress }: Props) {
         k.add1, k.add2, k.add3,
         norm(k.selectRed), norm(k.selectBlue),
         norm(k.senshu), norm(k.penalty),
+        // Aliases for the digit + undo keys.
+        "y", "w", "i", "Backspace", "Escape",
       ]);
       if (ownedKeys.has(lk) || ownedKeys.has(key)) e.preventDefault();
 
@@ -109,7 +128,20 @@ export function KeyboardHandler({ suppress }: Props) {
         return;
       }
       if (key === "Enter") {
-        advanceActiveMatch();
+        // Only advance when the match is genuinely over: winner declared,
+        // timer hit zero, or someone reached 5 penalties (which also
+        // sets timer.finished via the reducer). This stops accidental
+        // mid-match advances.
+        const m = state.match;
+        const matchOver =
+          !!m.activeMatchRef &&
+          (state.timer.finished ||
+            state.timer.remaining === 0 ||
+            m.bluePenalties >= 5 ||
+            m.redPenalties >= 5 ||
+            m.blueEliminated ||
+            m.redEliminated);
+        if (matchOver) advanceActiveMatch();
         return;
       }
       const cur = inputRef.current;
@@ -118,32 +150,61 @@ export function KeyboardHandler({ suppress }: Props) {
         reset();
         return;
       }
+
+      // Delete / Backspace pressed WITHOUT a side selected → 10-second
+      // global undo. Reverses the most recent score/penalty/advantage
+      // if it landed inside the window; silent no-op otherwise.
+      const isUndoKey = key === k.undo || key === "Delete" || key === "Backspace";
+      if (isUndoKey && !cur.selected) {
+        const la = lastActionRef.current;
+        if (la && Date.now() - la.ts <= UNDO_WINDOW_MS) {
+          e.preventDefault();
+          if (la.kind === "score") addPoints(la.side, -la.delta);
+          else if (la.kind === "penalty") addPenalty(la.side, -la.delta);
+          else if (la.kind === "advantage") setAdvantage(la.side, false);
+          lastActionRef.current = null;
+        }
+        return;
+      }
+
       if (!cur.selected) return;
 
-      if (key === k.undo) {
+      if (isUndoKey) {
+        // Side IS selected → flip the per-side undo-armed flag (legacy chord).
         cur.undoArmed = !cur.undoArmed;
         setTick((x) => x + 1);
         return;
       }
       const sign = cur.undoArmed ? -1 : 1;
       const sel = cur.selected;
+      // Hardcoded key aliases for ergonomics:
+      //   Y also = 1   W also = 2   I also = 3
+      // Backspace handled above (alias for Delete/undo).
+      const isAdd1 = lk === norm(k.add1) || lk === "y";
+      const isAdd2 = lk === norm(k.add2) || lk === "w";
+      const isAdd3 = lk === norm(k.add3) || lk === "i";
+
       // Score / penalty / senshu actions keep the side selected after firing
       // so the operator can rapid-fire multiple inputs on the same fighter
       // without re-pressing R or A every time. Only the undo-armed flag
       // resets (single-use).
-      if (lk === norm(k.add1)) {
-        e.preventDefault(); addPoints(sel, 1 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
+      if (isAdd1) {
+        e.preventDefault(); addPoints(sel, 1 * sign); recordAction("score", sel, 1 * sign);
+        cur.undoArmed = false; setTick((x) => x + 1); return;
       }
-      if (lk === norm(k.add2)) {
-        e.preventDefault(); addPoints(sel, 2 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
+      if (isAdd2) {
+        e.preventDefault(); addPoints(sel, 2 * sign); recordAction("score", sel, 2 * sign);
+        cur.undoArmed = false; setTick((x) => x + 1); return;
       }
-      if (lk === norm(k.add3)) {
-        e.preventDefault(); addPoints(sel, 3 * sign); cur.undoArmed = false; setTick((x) => x + 1); return;
+      if (isAdd3) {
+        e.preventDefault(); addPoints(sel, 3 * sign); recordAction("score", sel, 3 * sign);
+        cur.undoArmed = false; setTick((x) => x + 1); return;
       }
       if (lk === norm(k.senshu)) {
         if (isKata) return;
         e.preventDefault();
         setAdvantage(sel, !cur.undoArmed);
+        if (!cur.undoArmed) recordAction("advantage", sel, 1);
         cur.undoArmed = false;
         setTick((x) => x + 1);
         return;
@@ -152,6 +213,7 @@ export function KeyboardHandler({ suppress }: Props) {
         if (isKata) return;
         e.preventDefault();
         addPenalty(sel, sign);
+        recordAction("penalty", sel, sign);
         cur.undoArmed = false;
         setTick((x) => x + 1);
         return;

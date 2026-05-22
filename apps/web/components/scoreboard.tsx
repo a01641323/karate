@@ -175,12 +175,26 @@ function ShortcutsPanel() {
         label="select side, then add points"
         keys={["A", "R"]}
         sep="/"
-        suffix={<><span className="sep">→</span><span className="kbd">1</span><span className="kbd">2</span><span className="kbd">3</span></>}
+        suffix={
+          <>
+            <span className="sep">→</span>
+            <span className="kbd">1</span>
+            <span className="sep">·</span>
+            <span className="kbd">2</span>
+            <span className="sep">·</span>
+            <span className="kbd">3</span>
+            <span className="sep" style={{ opacity: 0.5 }}>(or</span>
+            <span className="kbd">Y</span>
+            <span className="kbd">W</span>
+            <span className="kbd">I</span>
+            <span className="sep" style={{ opacity: 0.5 }}>)</span>
+          </>
+        }
       />
       <Row label="toggle advantage (after side)" keys={["S"]} />
       <Row label="add penalty (after side)" keys={["C"]} accent />
-      <Row label="arm undo (next input subtracts)" keys={["Del"]} />
-      <Row label="advance match" keys={["Enter"]} />
+      <Row label="undo last action within 10s (no side selected)" keys={["Del", "⌫"]} sep="/" />
+      <Row label="advance match (after winner / timeout)" keys={["Enter"]} />
     </div>
   );
 }

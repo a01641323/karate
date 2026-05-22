@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Scoreboard } from "@/components/scoreboard";
-import { NetworkStatusBadge } from "@/components/network-status-badge";
 
 function toggleFullscreen() {
   const fs =
@@ -60,7 +59,6 @@ export default function PublicPage() {
     <section id="view-public">
       <Scoreboard state={state} variant="public" />
       <div className="fs-hint">Press F for fullscreen</div>
-      <NetworkStatusBadge variant="floating" />
     </section>
   );
 }

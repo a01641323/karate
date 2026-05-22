@@ -174,7 +174,7 @@ function StatusBadge({ status, restSec }: { status: StatusTag | "Empty"; restSec
   );
 }
 
-function PanelCard({ data }: { data: PanelData }) {
+function PanelCard({ data, onClose }: { data: PanelData; onClose: () => void }) {
   const isEmpty = data.status === "Empty";
   return (
     <div
@@ -188,28 +188,48 @@ function PanelCard({ data }: { data: PanelData }) {
         boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
         fontSize: 13,
         lineHeight: 1.4,
-        pointerEvents: "none",
+        pointerEvents: "auto",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#94a3b8", textTransform: "uppercase" }}>
           Next Match · {data.areaName}
         </span>
-        {data.discipline ? (
-          <span
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {data.discipline ? (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                padding: "1px 6px",
+                borderRadius: 3,
+                background: data.discipline === "KATA" ? "#7c3aed" : "#dc2626",
+                color: "white",
+              }}
+            >
+              {data.discipline}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            title="Hide (you can reopen from the badge)"
+            aria-label="Hide next-match panel"
             style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              padding: "1px 6px",
+              background: "transparent",
+              border: "none",
+              color: "#94a3b8",
+              cursor: "pointer",
+              fontSize: 14,
+              lineHeight: 1,
+              padding: "2px 4px",
               borderRadius: 3,
-              background: data.discipline === "KATA" ? "#7c3aed" : "#dc2626",
-              color: "white",
             }}
           >
-            {data.discipline}
-          </span>
-        ) : null}
+            ✕
+          </button>
+        </div>
       </div>
       {isEmpty ? (
         <div style={{ color: "#94a3b8", fontStyle: "italic", marginTop: 4 }}>
@@ -240,15 +260,33 @@ function PanelCard({ data }: { data: PanelData }) {
   );
 }
 
+const HIDDEN_KEY = "karate.nextMatch.hidden";
+
 export function NextMatchPanel() {
   const { state } = useStore();
   const { current } = useArea();
   // Live ticker so the rest countdown re-renders every second.
   const [tick, setTick] = useState(0);
+  const [hidden, setHidden] = useState(false);
+
   useEffect(() => {
     const id = setInterval(() => setTick((t) => (t + 1) % 100000), 1000);
     return () => clearInterval(id);
   }, []);
+  // Restore the user's hide-preference on mount.
+  useEffect(() => {
+    try {
+      setHidden(window.localStorage.getItem(HIDDEN_KEY) === "1");
+    } catch { /* localStorage blocked */ }
+  }, []);
+
+  function persistHidden(v: boolean) {
+    setHidden(v);
+    try {
+      if (v) window.localStorage.setItem(HIDDEN_KEY, "1");
+      else window.localStorage.removeItem(HIDDEN_KEY);
+    } catch {}
+  }
 
   // Which areas does this machine display? If `useArea` returns null we
   // assume the operator has not picked one yet — show nothing rather than
@@ -257,6 +295,37 @@ export function NextMatchPanel() {
   const now = Date.now() + tick * 0; // keep `tick` in dep tree via the closure
   const data = resolvePanelForArea(state, current, Date.now());
   void now;
+
+  // Collapsed: render only the small floating tab so the operator can
+  // bring the panel back without digging through menus.
+  if (hidden) {
+    return (
+      <button
+        type="button"
+        onClick={() => persistHidden(false)}
+        title="Show next-match panel"
+        style={{
+          position: "fixed",
+          top: 64,
+          right: 16,
+          zIndex: 50,
+          background: "rgba(15, 23, 42, 0.92)",
+          color: "#e2e8f0",
+          border: "1px solid rgba(148, 163, 184, 0.2)",
+          borderRadius: 999,
+          padding: "6px 12px",
+          fontFamily: "var(--font-mono, monospace)",
+          fontSize: 11,
+          letterSpacing: 0.08 * 16 / 16,
+          textTransform: "uppercase",
+          cursor: "pointer",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+        }}
+      >
+        ▸ Next Match
+      </button>
+    );
+  }
 
   return (
     <div
@@ -270,7 +339,7 @@ export function NextMatchPanel() {
         gap: 8,
       }}
     >
-      <PanelCard data={data} />
+      <PanelCard data={data} onClose={() => persistHidden(true)} />
     </div>
   );
 }
