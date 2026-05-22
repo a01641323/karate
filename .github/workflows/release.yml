@@ -40,7 +40,11 @@ jobs:
             target: bun-darwin-arm64
             asset: kumiteos-darwin-arm64
             ext: tar.gz
-          - os: macos-13
+          # Cross-compile darwin-x64 from a macos-14 runner. The
+          # macos-13 (Intel) runner pool is heavily backlogged on the
+          # GitHub free tier; bun --target handles the arch switch
+          # without needing native hardware.
+          - os: macos-14
             target: bun-darwin-x64
             asset: kumiteos-darwin-x64
             ext: tar.gz
