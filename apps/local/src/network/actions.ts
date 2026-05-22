@@ -22,17 +22,29 @@ function checkCombatWin(s: AnyState) {
   const ref = s.match.activeMatchRef;
   if (!ref) return;
   const threshold = s.tournament.settings.pointDifference ?? 0;
-  if (s.match.discipline === "combat" && threshold > 0) {
-    const winnerSide = (core as any).computeCombatWinner(s.match, threshold);
-    if (winnerSide) {
-      s.timer.running = false;
-      const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
-      const loserName = winnerSide === "blue" ? s.match.redName : s.match.blueName;
-      (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
-      const next = (core as any).findNextMatch(s, ref);
-      if (next) (core as any).loadMatchToScoreboardImpl(s, next);
-    }
-  }
+  if (s.match.discipline !== "combat" || threshold <= 0) return;
+  // Only the EXPLICIT threshold triggers an auto-finalise here. The
+  // "higher points wins" fallback (inside computeCombatWinner) is the
+  // tie-break used at end-of-time / manual advance — applying it on
+  // every SCORE_POINT would auto-end a match on a single yuko, which
+  // the operator never wants.
+  const diff = s.match.bluePoints - s.match.redPoints;
+  const winnerSide: "blue" | "red" | null =
+    diff >=  threshold ? "blue" :
+    -diff >= threshold ? "red"  :
+    null;
+  if (!winnerSide) return;
+
+  // Threshold hit: stop the clock, mark the bracket winner so the
+  // bracket is consistent — but DO NOT load the next match. The
+  // scoreboard stays on the just-finished match until the operator
+  // explicitly presses Enter / Advance. That gives them a beat to
+  // review the result on the public display, announce, etc.
+  s.timer.running = false;
+  s.timer.finished = true;
+  const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
+  const loserName  = winnerSide === "blue" ? s.match.redName  : s.match.blueName;
+  (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
 }
 
 const handlers: Record<string, Handler> = {
@@ -60,17 +72,18 @@ const handlers: Record<string, Handler> = {
     const key = side === "blue" ? "bluePenalties" : "redPenalties";
     s.match[key] = clamp(s.match[key] + delta, 0, 5);
     if (s.match[key] === 5 && delta > 0) {
-      // 5 penalties = hansoku (disqualification). Opponent wins immediately;
-      // timer freezes wherever it was and the bracket auto-advances.
+      // 5 penalties = hansoku (disqualification). Freeze the clock and
+      // declare the bracket winner so the bracket is consistent — but
+      // leave the scoreboard on this match until the operator hits
+      // Enter / Advance, so the call can be reviewed.
       s.timer.running = false;
+      s.timer.finished = true;
       const ref = s.match.activeMatchRef;
       if (ref) {
         const winnerName = side === "blue" ? s.match.redName : s.match.blueName;
         const loserName  = side === "blue" ? s.match.blueName : s.match.redName;
         if (winnerName) {
           (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
-          const next = (core as any).findNextMatch(s, ref);
-          if (next) (core as any).loadMatchToScoreboardImpl(s, next);
         }
       }
     }
@@ -129,14 +142,16 @@ const handlers: Record<string, Handler> = {
       const sameMatch = (core as any).matchIdFromRef(active) === (core as any).matchIdFromRef(ref);
       if (!sameMatch) {
         const activeMatch = (core as any).getMatchByRef(s, active);
+        // Only the SCOREBOARD progress locks; a running timer alone
+        // doesn't (the operator may have started the clock then chosen
+        // to switch to a different match before any scoring happened).
         const hasScoring =
           s.match.bluePoints > 0 ||
           s.match.redPoints > 0 ||
           s.match.bluePenalties > 0 ||
           s.match.redPenalties > 0 ||
           s.match.blueAdvantage ||
-          s.match.redAdvantage ||
-          s.timer.running;
+          s.match.redAdvantage;
         const matchOver =
           !!activeMatch?.winner ||
           s.timer.finished ||
@@ -256,8 +271,9 @@ const handlers: Record<string, Handler> = {
     const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
     const loserName  = winnerSide === "blue" ? s.match.redName  : s.match.blueName;
     (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
-    const next = (core as any).findNextMatch(s, ref);
-    if (next) (core as any).loadMatchToScoreboardImpl(s, next);
+    s.timer.finished = true;
+    // Don't auto-load the next match — operator presses Enter / Advance
+    // to move on, so the just-decided kata stays visible for review.
   },
   ELIMINATE(s, { side, ref: refArg }) {
     if (side === "blue") s.match.blueEliminated = true;
@@ -280,8 +296,8 @@ const handlers: Record<string, Handler> = {
     const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
     const loserName = winnerSide === "blue" ? s.match.redName : s.match.blueName;
     (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
-    const next = (core as any).findNextMatch(s, ref);
-    if (next) (core as any).loadMatchToScoreboardImpl(s, next);
+    s.timer.finished = true;
+    // Hold on this match until the operator advances explicitly.
   },
   SET_ACTIVE_CATEGORY(s, { catId }) {
     s.tournament.activeCategoryId = catId;

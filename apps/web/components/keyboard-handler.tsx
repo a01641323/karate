@@ -154,14 +154,17 @@ export function KeyboardHandler({ suppress }: Props) {
         return;
       }
 
-      // Delete / Backspace pressed WITHOUT a side selected → 10-second
-      // global undo. Reverses the most recent score/penalty/advantage
-      // if it landed inside the window; silent no-op otherwise.
+      // Delete / Backspace → immediate global undo. Reverses the most
+      // recent score / penalty / advantage if it landed within the
+      // 10-second window; silent no-op otherwise. Works regardless of
+      // whether a side is currently selected — sticky-selection made
+      // the old "arm undo, press 1/2/3 to subtract" chord unreachable
+      // in practice.
       const isUndoKey = key === k.undo || key === "Delete" || key === "Backspace";
-      if (isUndoKey && !cur.selected) {
+      if (isUndoKey) {
+        e.preventDefault();
         const la = lastActionRef.current;
         if (la && Date.now() - la.ts <= UNDO_WINDOW_MS) {
-          e.preventDefault();
           if (la.kind === "score") addPoints(la.side, -la.delta);
           else if (la.kind === "penalty") addPenalty(la.side, -la.delta);
           else if (la.kind === "advantage") setAdvantage(la.side, false);
@@ -192,13 +195,6 @@ export function KeyboardHandler({ suppress }: Props) {
         return;
       }
 
-      if (isUndoKey) {
-        // Side IS selected → flip the per-side undo-armed flag (legacy chord).
-        cur.undoArmed = !cur.undoArmed;
-        setTick((x) => x + 1);
-        return;
-      }
-      const sign = cur.undoArmed ? -1 : 1;
       const sel = cur.selected;
       // Hardcoded key aliases for ergonomics:
       //   Y also = 1   W also = 2   I also = 3
@@ -207,37 +203,35 @@ export function KeyboardHandler({ suppress }: Props) {
       const isAdd2 = lk === norm(k.add2) || lk === "w";
       const isAdd3 = lk === norm(k.add3) || lk === "i";
 
-      // Score / penalty / senshu actions keep the side selected after firing
-      // so the operator can rapid-fire multiple inputs on the same fighter
-      // without re-pressing R or A every time. Only the undo-armed flag
-      // resets (single-use).
+      // Score / penalty / senshu actions keep the side selected after
+      // firing so the operator can rapid-fire multiple inputs on the
+      // same fighter without re-pressing R or A every time. Each action
+      // records itself for the 10-second global undo.
       if (isAdd1) {
-        e.preventDefault(); addPoints(sel, 1 * sign); recordAction("score", sel, 1 * sign);
-        cur.undoArmed = false; setTick((x) => x + 1); return;
+        e.preventDefault(); addPoints(sel, 1); recordAction("score", sel, 1);
+        setTick((x) => x + 1); return;
       }
       if (isAdd2) {
-        e.preventDefault(); addPoints(sel, 2 * sign); recordAction("score", sel, 2 * sign);
-        cur.undoArmed = false; setTick((x) => x + 1); return;
+        e.preventDefault(); addPoints(sel, 2); recordAction("score", sel, 2);
+        setTick((x) => x + 1); return;
       }
       if (isAdd3) {
-        e.preventDefault(); addPoints(sel, 3 * sign); recordAction("score", sel, 3 * sign);
-        cur.undoArmed = false; setTick((x) => x + 1); return;
+        e.preventDefault(); addPoints(sel, 3); recordAction("score", sel, 3);
+        setTick((x) => x + 1); return;
       }
       if (lk === norm(k.senshu)) {
         if (isKata) return;
         e.preventDefault();
-        setAdvantage(sel, !cur.undoArmed);
-        if (!cur.undoArmed) recordAction("advantage", sel, 1);
-        cur.undoArmed = false;
+        setAdvantage(sel, true);
+        recordAction("advantage", sel, 1);
         setTick((x) => x + 1);
         return;
       }
       if (lk === norm(k.penalty)) {
         if (isKata) return;
         e.preventDefault();
-        addPenalty(sel, sign);
-        recordAction("penalty", sel, sign);
-        cur.undoArmed = false;
+        addPenalty(sel, 1);
+        recordAction("penalty", sel, 1);
         setTick((x) => x + 1);
         return;
       }
@@ -260,7 +254,6 @@ export function KeyboardHandler({ suppress }: Props) {
         <span className={cur.selected === "red" ? "red-tag" : "blue-tag"}>
           {cur.selected === "red" ? "Red selected" : "Blue selected"}
         </span>{" "}
-        {cur.undoArmed ? <span className="undo-tag">UNDO armed</span> : null}{" "}
         <span className="muted countdown">Esc to clear</span>
       </>
     );
