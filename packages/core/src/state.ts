@@ -56,6 +56,12 @@ export function buildInitialState(): AppState {
       redName: "",
       bluePoints: 0,
       redPoints: 0,
+      blueIppon: 0,
+      redIppon: 0,
+      blueWasari: 0,
+      redWasari: 0,
+      blueYuko: 0,
+      redYuko: 0,
       bluePenalties: 0,
       redPenalties: 0,
       blueAdvantage: false,
@@ -64,6 +70,7 @@ export function buildInitialState(): AppState {
       redEliminated: false,
       discipline: null,
       activeMatchRef: null,
+      tieBreakReason: null,
     },
     timer: {
       duration: 120,
@@ -449,6 +456,21 @@ export function startCategory(state: AppState, catId: string): string[] {
   cat.started = true;
   // Now that we know the real roster, build the subcategories.
   rebuildCategorySubcategories(cat, state.tournament.settings);
+  // …and immediately re-run the area planner so the brand-new
+  // subcategories pick up area assignments right away. Without this
+  // they'd stay unassigned (areaIdx === undefined) until the next
+  // reseed or settings change — which is exactly the "I have to make
+  // a new seed every time I start a category" friction the operator
+  // hit. Keep prior manual assignments; only the new ones get
+  // greedily placed onto the lightest-loaded area.
+  state.tournament.areaAssignments = buildAreaPlan(
+    {
+      categoryOrder: state.tournament.categoryOrder,
+      categories: state.tournament.categories,
+      areaCount: state.tournament.settings.areaCount,
+    },
+    state.tournament.areaAssignments,
+  ).assignments;
   return removedNames;
 }
 
@@ -478,6 +500,12 @@ export function resetLiveScoreboard(state: AppState): void {
   state.match.redName = "";
   state.match.bluePoints = 0;
   state.match.redPoints = 0;
+  state.match.blueIppon = 0;
+  state.match.redIppon = 0;
+  state.match.blueWasari = 0;
+  state.match.redWasari = 0;
+  state.match.blueYuko = 0;
+  state.match.redYuko = 0;
   state.match.bluePenalties = 0;
   state.match.redPenalties = 0;
   state.match.blueAdvantage = false;
@@ -486,6 +514,7 @@ export function resetLiveScoreboard(state: AppState): void {
   state.match.redEliminated = false;
   state.match.discipline = null;
   state.match.activeMatchRef = null;
+  state.match.tieBreakReason = null;
   state.timer.duration = state.settings.defaultDuration;
   state.timer.remaining = state.settings.defaultDuration;
   state.timer.running = false;
@@ -502,12 +531,19 @@ export function loadMatchToScoreboardImpl(
   state.match.redName = m.p2;
   state.match.bluePoints = 0;
   state.match.redPoints = 0;
+  state.match.blueIppon = 0;
+  state.match.redIppon = 0;
+  state.match.blueWasari = 0;
+  state.match.redWasari = 0;
+  state.match.blueYuko = 0;
+  state.match.redYuko = 0;
   state.match.bluePenalties = 0;
   state.match.redPenalties = 0;
   state.match.blueAdvantage = false;
   state.match.redAdvantage = false;
   state.match.blueEliminated = false;
   state.match.redEliminated = false;
+  state.match.tieBreakReason = null;
   state.match.discipline = ref.discipline;
   state.match.activeMatchRef = ref;
   state.timer.duration = state.settings.defaultDuration;

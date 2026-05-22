@@ -181,6 +181,18 @@ export interface MatchState {
   redName: string;
   bluePoints: number;
   redPoints: number;
+  /**
+   * Per-value counters used as the second-level tiebreak when points are
+   * tied and neither side holds the lone advantage. Más ippon → más
+   * wasari → más yuko → jury. Updated by the SCORE_POINT reducer on
+   * every delta so undo (negative deltas) keeps them honest.
+   */
+  blueIppon: number; // 3-point scores
+  redIppon: number;
+  blueWasari: number; // 2-point scores
+  redWasari: number;
+  blueYuko: number; // 1-point scores
+  redYuko: number;
   bluePenalties: number;
   redPenalties: number;
   blueAdvantage: boolean;
@@ -189,6 +201,11 @@ export interface MatchState {
   redEliminated: boolean;
   discipline: Discipline | null;
   activeMatchRef: ActiveMatchRef | null;
+  /**
+   * Briefly-flashed reason the most recent winner was declared via the
+   * point-type tiebreak. Cleared when the next match loads.
+   */
+  tieBreakReason?: "ippon" | "wasari" | "yuko" | null;
 }
 
 export interface TimerState {
@@ -281,4 +298,15 @@ export interface AppState {
    * rebuilds from the bracket on first tick after load).
    */
   engine?: import("./engine-types").EngineState;
+  /**
+   * Short-lived UI flash. Currently only used to surface "Más ippon /
+   * wasari / yuko" after a tied combat match auto-advances. The renderer
+   * clears it after ~3 s (or on next match load) so it never persists.
+   */
+  flash?: {
+    kind: "tiebreak";
+    reason: "ippon" | "wasari" | "yuko";
+    winnerName: string;
+    expiresAtMs: number;
+  } | null;
 }

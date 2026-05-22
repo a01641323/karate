@@ -162,7 +162,24 @@ export function Scoreboard({ state, variant }: Props) {
           </>
         )}
       </div>
+      <TieBreakFlash state={state} />
     </>
+  );
+}
+
+function TieBreakFlash({ state }: { state: AppState }) {
+  const flash = state.flash;
+  if (!flash || flash.kind !== "tiebreak") return null;
+  if (flash.expiresAtMs <= Date.now()) return null;
+  const label =
+    flash.reason === "ippon"  ? "MÁS IPPON"  :
+    flash.reason === "wasari" ? "MÁS WASARI" :
+    "MÁS YUKO";
+  return (
+    <div className="tiebreak-flash">
+      <div className="tiebreak-flash-label">{label}</div>
+      <div className="tiebreak-flash-name">{flash.winnerName}</div>
+    </div>
   );
 }
 

@@ -34,6 +34,7 @@ export function KeyboardHandler({ suppress }: Props) {
     adjustTimer,
     togglePause,
     advanceActiveMatch,
+    setKataScore,
     actionable,
   } = useStore();
   const [tick, setTick] = useState(0);
@@ -101,6 +102,8 @@ export function KeyboardHandler({ suppress }: Props) {
         norm(k.senshu), norm(k.penalty),
         // Aliases for the digit + undo keys.
         "y", "w", "i", "Backspace", "Escape",
+        // Kata-only digits.
+        "4", "5",
       ]);
       if (ownedKeys.has(lk) || ownedKeys.has(key)) e.preventDefault();
 
@@ -169,6 +172,26 @@ export function KeyboardHandler({ suppress }: Props) {
 
       if (!cur.selected) return;
 
+      // Kata: digits 1–5 are the entire scoring surface. Each press
+      // SETS the selected side's value, the opponent gets 5 − value,
+      // and the match resolves immediately. No penalties / advantage /
+      // timer keys are honoured.
+      if (isKata) {
+        const digit =
+          key === "1" || lk === "y" ? 1 :
+          key === "2" || lk === "w" ? 2 :
+          key === "3" || lk === "i" ? 3 :
+          key === "4" ? 4 :
+          key === "5" ? 5 :
+          null;
+        if (digit !== null) {
+          e.preventDefault();
+          setKataScore(cur.selected, digit);
+          reset();
+        }
+        return;
+      }
+
       if (isUndoKey) {
         // Side IS selected → flip the per-side undo-armed flag (legacy chord).
         cur.undoArmed = !cur.undoArmed;
@@ -223,7 +246,7 @@ export function KeyboardHandler({ suppress }: Props) {
     // click) doesn't steal Space/Enter from us.
     window.addEventListener("keydown", handler, { capture: true });
     return () => window.removeEventListener("keydown", handler, { capture: true });
-  }, [state, addPoints, setAdvantage, addPenalty, adjustTimer, togglePause, advanceActiveMatch, suppress, actionable]);
+  }, [state, addPoints, setAdvantage, addPenalty, adjustTimer, togglePause, advanceActiveMatch, setKataScore, suppress, actionable]);
 
   // input-state hint banner
   const cur = inputRef.current;

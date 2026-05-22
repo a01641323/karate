@@ -176,8 +176,13 @@ function StatusBadge({ status, restSec }: { status: StatusTag | "Empty"; restSec
 
 function PanelCard({ data, onClose }: { data: PanelData; onClose: () => void }) {
   const isEmpty = data.status === "Empty";
+  // The whole card is the close target — clicking anywhere on it
+  // dismisses the panel. Reopen via the floating pill.
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClose}
+      title="Click anywhere on this card to hide it. Reopen from the floating tab."
       style={{
         width: 280,
         background: "rgba(15, 23, 42, 0.92)",
@@ -188,48 +193,30 @@ function PanelCard({ data, onClose }: { data: PanelData; onClose: () => void }) 
         boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
         fontSize: 13,
         lineHeight: 1.4,
-        pointerEvents: "auto",
+        textAlign: "left",
+        font: "inherit",
+        cursor: "pointer",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#94a3b8", textTransform: "uppercase" }}>
           Next Match · {data.areaName}
         </span>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {data.discipline ? (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                padding: "1px 6px",
-                borderRadius: 3,
-                background: data.discipline === "KATA" ? "#7c3aed" : "#dc2626",
-                color: "white",
-              }}
-            >
-              {data.discipline}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            title="Hide (you can reopen from the badge)"
-            aria-label="Hide next-match panel"
+        {data.discipline ? (
+          <span
             style={{
-              background: "transparent",
-              border: "none",
-              color: "#94a3b8",
-              cursor: "pointer",
-              fontSize: 14,
-              lineHeight: 1,
-              padding: "2px 4px",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              padding: "1px 6px",
               borderRadius: 3,
+              background: data.discipline === "KATA" ? "#7c3aed" : "#dc2626",
+              color: "white",
             }}
           >
-            ✕
-          </button>
-        </div>
+            {data.discipline}
+          </span>
+        ) : null}
       </div>
       {isEmpty ? (
         <div style={{ color: "#94a3b8", fontStyle: "italic", marginTop: 4 }}>
@@ -256,7 +243,7 @@ function PanelCard({ data, onClose }: { data: PanelData; onClose: () => void }) 
           ) : null}
         </>
       )}
-    </div>
+    </button>
   );
 }
 

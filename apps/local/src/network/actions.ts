@@ -39,8 +39,21 @@ const handlers: Record<string, Handler> = {
   SCORE_POINT(s, { side, n }) {
     if (side !== "blue" && side !== "red") throw new ActionRejectedError("invalid", "bad side");
     if (typeof n !== "number" || !Number.isFinite(n)) throw new ActionRejectedError("invalid", "bad n");
-    const key = side === "blue" ? "bluePoints" : "redPoints";
-    s.match[key] = Math.max(0, s.match[key] + n);
+    const ptKey = side === "blue" ? "bluePoints" : "redPoints";
+    s.match[ptKey] = Math.max(0, s.match[ptKey] + n);
+    // Track per-value counters for the ippon/wasari/yuko tiebreak. Undo
+    // (negative n) walks the SAME bucket back so the counts stay honest.
+    const magnitude = Math.abs(n);
+    if (magnitude === 1 || magnitude === 2 || magnitude === 3) {
+      const bucket =
+        magnitude === 3
+          ? side === "blue" ? "blueIppon"  : "redIppon"
+          : magnitude === 2
+          ? side === "blue" ? "blueWasari" : "redWasari"
+          : side === "blue" ? "blueYuko"   : "redYuko";
+      const next = (s.match[bucket] ?? 0) + Math.sign(n);
+      s.match[bucket] = Math.max(0, next);
+    }
     checkCombatWin(s);
   },
   ADD_PENALTY(s, { side, delta }) {
@@ -115,13 +128,67 @@ const handlers: Record<string, Handler> = {
     if (!m || m.winner) return;
     s.match.discipline = ref.discipline;
     const threshold = s.tournament.settings.pointDifference ?? 0;
-    const winnerSide = (core as any).computeWinner(s.match, threshold > 0 ? threshold : undefined);
+    // Use the detailed call so we can surface "Más ippon/wasari/yuko"
+    // for the brief banner before the bracket advances. Kata still uses
+    // the simple computeKataWinner (no per-value buckets).
+    let winnerSide: "blue" | "red" | null;
+    let tieBreak: "ippon" | "wasari" | "yuko" | undefined;
+    if (s.match.discipline === "kata") {
+      winnerSide = (core as any).computeKataWinner(s.match);
+    } else {
+      const detail = (core as any).computeCombatWinnerDetailed(
+        s.match,
+        threshold > 0 ? threshold : undefined,
+      );
+      winnerSide = detail.side;
+      tieBreak = detail.tieBreak;
+    }
     if (!winnerSide) {
       s.jury = { competitors: [s.match.blueName, s.match.redName], context: { kind: "match", ref } };
       return;
     }
+    if (tieBreak) s.match.tieBreakReason = tieBreak;
     const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
     const loserName = winnerSide === "blue" ? s.match.redName : s.match.blueName;
+    if (tieBreak) {
+      s.flash = {
+        kind: "tiebreak",
+        reason: tieBreak,
+        winnerName,
+        expiresAtMs: Date.now() + 3000,
+      };
+    }
+    (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
+    const next = (core as any).findNextMatch(s, ref);
+    if (next) (core as any).loadMatchToScoreboardImpl(s, next);
+  },
+  SET_KATA_SCORE(s, { side, value }) {
+    // Kata is judged on a single 0–5 scale. Whatever the operator awards
+    // to one side, the other side automatically gets 5 − that. The
+    // higher score wins immediately; the bracket advances and the next
+    // match loads without further input.
+    if (side !== "blue" && side !== "red") throw new ActionRejectedError("invalid", "bad side");
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new ActionRejectedError("invalid", "bad value");
+    }
+    const v = Math.max(0, Math.min(5, Math.round(value)));
+    const other = 5 - v;
+    s.match.bluePoints = side === "blue" ? v : other;
+    s.match.redPoints  = side === "red"  ? v : other;
+    // No penalties / advantage in kata; force them off so a stale UI
+    // can't accidentally tilt the decision.
+    s.match.bluePenalties = 0;
+    s.match.redPenalties  = 0;
+    s.match.blueAdvantage = false;
+    s.match.redAdvantage  = false;
+    s.timer.running = false;
+
+    const ref = s.match.activeMatchRef;
+    if (!ref) return;
+    const winnerSide = (core as any).computeKataWinner(s.match);
+    if (!winnerSide) return; // shouldn't happen with 1..5 vs 4..0, but be safe
+    const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
+    const loserName  = winnerSide === "blue" ? s.match.redName  : s.match.blueName;
     (core as any).finalizeMatchByRef(s, ref, winnerName, loserName, false);
     const next = (core as any).findNextMatch(s, ref);
     if (next) (core as any).loadMatchToScoreboardImpl(s, next);

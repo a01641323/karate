@@ -114,6 +114,9 @@ interface StoreApi {
   resetScoreboard: (skipConfirm?: boolean) => void;
   eliminate: (side: "blue" | "red") => void;
   addPoints: (side: "blue" | "red", n: number) => void;
+  /** Kata-only: set the selected side's score (0–5). Opponent gets 5−value;
+   *  the higher score wins immediately. */
+  setKataScore: (side: "blue" | "red", value: number) => void;
   setAdvantage: (side: "blue" | "red", value: boolean) => void;
   addPenalty: (side: "blue" | "red", delta: number) => void;
   adjustTimer: (deltaSeconds: number) => void;
@@ -416,10 +419,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // machine" is local state, not server state. Override `state.match` from
   // the bracket lookup of the local ref so each machine sees its own match.
   const baseState = mode === "standalone" ? localState : (networkState ?? buildInitialState());
-  const stateWithLocalMatch =
-    mode !== "standalone" && localActiveMatchRef
-      ? applyLocalActiveMatch(baseState, localActiveMatchRef)
-      : baseState;
+  // The earlier "per-machine independent scoreboard" projection
+  // (applyLocalActiveMatch) zeroed bluePoints/redPoints whenever the
+  // renderer's local ref disagreed with the server's by even one tick,
+  // which created a window where SCORE_POINT looked silent because the
+  // displayed scoring stayed at zero. Single-machine operation never
+  // benefited from that projection — the server is the single source of
+  // truth for the live match. Drop it; trust state.match as-is.
+  const stateWithLocalMatch = baseState;
   const state = mergeOptimistic(stateWithLocalMatch, optimistic);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -725,6 +732,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       },
       addPoints: (side, n) => dispatchScore(side, n),
+      setKataScore: (side, value) => {
+        if (!actionable && mode !== "standalone") return;
+        if (mode === "standalone") {
+          updateLocal((s) => {
+            // Mirror the SET_KATA_SCORE reducer in standalone mode so
+            // tests / single-machine usage stays consistent.
+            const v = Math.max(0, Math.min(5, Math.round(value)));
+            const other = 5 - v;
+            s.match.bluePoints = side === "blue" ? v : other;
+            s.match.redPoints  = side === "red"  ? v : other;
+            s.match.bluePenalties = 0;
+            s.match.redPenalties  = 0;
+            s.match.blueAdvantage = false;
+            s.match.redAdvantage  = false;
+            s.timer.running = false;
+            const ref = s.match.activeMatchRef;
+            if (!ref) return;
+            const winnerSide = computeWinner(s.match);
+            if (!winnerSide) return;
+            const winnerName = winnerSide === "blue" ? s.match.blueName : s.match.redName;
+            const loserName  = winnerSide === "blue" ? s.match.redName  : s.match.blueName;
+            finalizeMatchByRef(s, ref, winnerName, loserName, false);
+            const next = findNextMatch(s, ref);
+            if (next) loadMatchToScoreboardImpl(s, next);
+          });
+        } else {
+          sendNamed(Actions.setKataScore(side, value));
+        }
+      },
       setAdvantage: (side, value) => {
         if (mode === "standalone") {
           updateLocal((s) => {

@@ -58,6 +58,9 @@ export function resolveJury(chosenName: string): NetworkActionEnvelope {
 export function markArrived(participantId: string, arrived: boolean): NetworkActionEnvelope {
   return { actionId: id(), actionType: "MARK_ARRIVED", payload: { participantId, arrived }, ts: Date.now() };
 }
+export function setKataScore(side: "blue" | "red", value: number): NetworkActionEnvelope {
+  return { actionId: id(), actionType: "SET_KATA_SCORE", payload: { side, value }, ts: Date.now() };
+}
 export function startCategory(catId: string): NetworkActionEnvelope {
   return { actionId: id(), actionType: "START_CATEGORY", payload: { catId }, ts: Date.now() };
 }
