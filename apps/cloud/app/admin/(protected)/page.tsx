@@ -1,35 +1,57 @@
 import Link from "next/link";
 import { oauthConfigured } from "@/auth";
 import { listPending } from "@/lib/requests";
+import { listAllCodes } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  if (!oauthConfigured) return null; // The layout renders the misconfig screen.
-  const pending = await listPending();
+  if (!oauthConfigured) return null;
+  const [pending, codes] = await Promise.all([listPending(), listAllCodes()]);
+  const now = Date.now();
+  const active = codes.filter(
+    (c) => c.status !== "revoked" && c.expiresAt > now,
+  );
+  const used = codes.filter((c) => c.status === "used" && c.expiresAt > now);
+  const revoked = codes.filter((c) => c.status === "revoked");
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Pending requests" value={pending.length} />
-        <Stat label="Granted (today)" value="—" hint="(KV histogram TODO)" />
-        <Stat label="Revoked codes" value="—" hint="(KV histogram TODO)" />
+    <section className="section">
+      <div className="section-head">
+        <div className="section-num">01</div>
+        <div className="section-titles">
+          <h2 className="section-title">Panel</h2>
+          <p className="section-sub">
+            Solicitudes pendientes, códigos activos, revocaciones.
+          </p>
+        </div>
+        <div className="section-meta">SUPERADMIN</div>
       </div>
-      <p>
-        <Link href="/admin/requests" className="text-blue-400 hover:underline">
-          Review pending requests →
+
+      <div className="stat-grid">
+        <Stat label="Solicitudes pendientes" value={pending.length} accent={pending.length > 0} />
+        <Stat label="Códigos activos" value={active.length} />
+        <Stat label="Activados (en uso)" value={used.length} />
+        <Stat label="Revocados" value={revoked.length} />
+      </div>
+
+      <div className="admin-cta-row">
+        <Link href="/admin/requests" className="btn primary">
+          Revisar solicitudes →
         </Link>
-      </p>
-    </div>
+        <Link href="/admin/codes" className="btn ghost">
+          Ver códigos →
+        </Link>
+      </div>
+    </section>
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
+function Stat({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
-      <div className="text-sm text-zinc-400">{label}</div>
-      <div className="mt-1 text-3xl font-semibold">{value}</div>
-      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
+    <div className={`stat-card ${accent ? "accent" : ""}`}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
     </div>
   );
 }

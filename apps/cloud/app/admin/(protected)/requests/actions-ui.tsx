@@ -25,9 +25,10 @@ export function GrantButton({ id }: { id: string }) {
           router.refresh();
         })
       }
-      className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium hover:bg-emerald-500 disabled:opacity-50"
+      className="btn-row"
+      style={{ borderColor: "rgba(22, 163, 74, 0.5)", color: "#4ade80" }}
     >
-      {pending ? "Granting…" : "Grant"}
+      {pending ? "…" : "Aprobar"}
     </button>
   );
 }
@@ -45,9 +46,9 @@ export function RejectButton({ id }: { id: string }) {
           router.refresh();
         })
       }
-      className="rounded border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs font-medium hover:bg-zinc-700 disabled:opacity-50"
+      className="btn-row danger"
     >
-      {pending ? "Rejecting…" : "Reject"}
+      {pending ? "…" : "Rechazar"}
     </button>
   );
 }

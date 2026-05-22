@@ -1,26 +1,39 @@
 import Link from "next/link";
 import { auth, signOut, oauthConfigured } from "@/auth";
 import { redirect } from "next/navigation";
+import { TopBar, Footer } from "@/components/chrome";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   if (!oauthConfigured) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-6 py-16">
-        <h1 className="text-2xl font-semibold">Admin panel not configured</h1>
-        <p className="text-zinc-400">
-          The deploy is missing one or more required environment variables:
-        </p>
-        <ul className="list-disc space-y-1 pl-5 text-sm font-mono text-zinc-300">
-          <li>GITHUB_CLIENT_ID</li>
-          <li>GITHUB_CLIENT_SECRET</li>
-          <li>SUPERADMIN_GITHUB_ID</li>
-          <li>AUTH_SECRET</li>
-        </ul>
-        <p className="text-sm text-zinc-500">
-          Set these in Vercel → Settings → Environment Variables, then redeploy.
-        </p>
-        <Link href="/" className="text-blue-400 hover:underline text-sm">← Back to landing</Link>
-      </main>
+      <div>
+        <TopBar />
+        <section className="section">
+          <div className="card" style={{ maxWidth: 640, margin: "0 auto" }}>
+            <div className="card-head">
+              <span className="card-eyebrow">CONFIGURACIÓN</span>
+              <span className="card-meta">Bloqueado</span>
+            </div>
+            <h1 className="section-title" style={{ fontSize: 22, marginBottom: 12 }}>
+              Admin panel not configured
+            </h1>
+            <p style={{ color: "var(--color-fg-2)", fontSize: 14, lineHeight: 1.55, marginBottom: 16 }}>
+              The deploy is missing one or more required environment variables:
+            </p>
+            <ul style={{ display: "grid", gap: 4, paddingLeft: 18, fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--color-fg)" }}>
+              <li>GITHUB_CLIENT_ID</li>
+              <li>GITHUB_CLIENT_SECRET</li>
+              <li>SUPERADMIN_GITHUB_ID</li>
+              <li>AUTH_SECRET</li>
+            </ul>
+            <p style={{ marginTop: 16, fontSize: 13, color: "var(--color-fg-2)" }}>
+              Set these in Vercel → Settings → Environment Variables, then redeploy.
+            </p>
+            <Link href="/" className="muted-link" style={{ display: "inline-block", marginTop: 12 }}>← Back</Link>
+          </div>
+        </section>
+        <Footer />
+      </div>
     );
   }
 
@@ -28,19 +41,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session) redirect("/admin/login");
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-white/10 bg-zinc-950/70 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/admin" className="text-lg font-semibold">Karate · admin</Link>
-            <Link href="/admin/requests" className="text-sm text-zinc-300 hover:text-white">Requests</Link>
+    <div>
+      <TopBar />
+      <div className="admin-shell">
+        <nav className="admin-subnav">
+          <div className="admin-subnav-inner">
+            <div className="admin-subnav-links">
+              <Link href="/admin" className="admin-subnav-link">Dashboard</Link>
+              <Link href="/admin/requests" className="admin-subnav-link">Requests</Link>
+              <Link href="/admin/codes" className="admin-subnav-link">Códigos</Link>
+            </div>
+            <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+              <button className="admin-signout">Sign out</button>
+            </form>
           </div>
-          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-            <button className="text-sm text-zinc-400 hover:text-white">Sign out</button>
-          </form>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        </nav>
+        <main className="admin-main-wrap">{children}</main>
+      </div>
+      <Footer />
     </div>
   );
 }

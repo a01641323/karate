@@ -58,6 +58,7 @@ export async function mintCode(opts: MintOpts): Promise<{ code: string; record: 
     };
     await kv.set(keys.code(codeHash), record);
     await kv.set(keys.codeById(record.codeId), codeHash);
+    await kv.sadd(keys.codesSet, record.codeId);
     return { code, record };
   }
   throw new Error("could not mint a unique code after 5 attempts");
@@ -94,6 +95,15 @@ export async function revokeCode(codeId: string): Promise<boolean> {
   await kv.set(keys.code(codeHash), { ...cur, status: "revoked" });
   if (cur.jti) await kv.set(keys.jtiRevoked(cur.jti), "1");
   return true;
+}
+
+export async function listAllCodes(): Promise<CodeRecord[]> {
+  const ids = (await kv.smembers(keys.codesSet)) as string[];
+  if (ids.length === 0) return [];
+  const rows = await Promise.all(ids.map((id) => findByCodeId(id)));
+  return rows
+    .filter((r): r is CodeRecord => r !== null)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export { hashCode };

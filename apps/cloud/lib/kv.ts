@@ -72,4 +72,6 @@ export const keys = {
   codeById: (codeId: string) => `code:byId:${codeId}`,
   jtiRevoked: (jti: string) => `jti:revoked:${jti}`,
   releaseCurrent: "release:current",
+  /** Set of every codeId ever minted — used by the admin /codes view. */
+  codesSet: "code:all",
 };
