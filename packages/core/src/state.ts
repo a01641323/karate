@@ -17,6 +17,7 @@ import type {
   MatchResult,
   Participant,
   AreaAssignments,
+  SubcategorySize,
 } from "./types";
 import { DEFAULT_KEYS } from "./data";
 import { rebuildCategoriesFromParticipants } from "./categories";
@@ -321,7 +322,7 @@ export function removeCategoryDef(state: AppState, defId: string): void {
 // =============================================================
 // Settings + areas
 // =============================================================
-export function setSubcategorySize(state: AppState, size: 4 | 8 | 16): void {
+export function setSubcategorySize(state: AppState, size: SubcategorySize): void {
   state.tournament.settings.subcategorySize = size;
   rebuildAllSubcategories(state);
   resetLiveScoreboard(state);

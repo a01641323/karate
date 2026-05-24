@@ -9,15 +9,12 @@ interface Props {
   disabled?: boolean;
 }
 
-type Tab = "csv" | "manual";
-
 const SAMPLE = `nombre,apellido,beltColor,age
 Juan,Pérez,blanco,12
 María,González,naranja,14
 Luis,Ramírez,negro,28`;
 
 export function StepParticipants({ value, onChange, disabled }: Props) {
-  const [tab, setTab] = useState<Tab>("manual");
   const [errors, setErrors] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -41,7 +38,7 @@ export function StepParticipants({ value, onChange, disabled }: Props) {
     onChange([]);
   }
 
-  async function importText(text: string, mode: "append" | "replace") {
+  function importText(text: string, mode: "append" | "replace") {
     const { rows, errs } = parseCsv(text);
     setErrors(errs);
     if (rows.length === 0) return;
@@ -53,7 +50,9 @@ export function StepParticipants({ value, onChange, disabled }: Props) {
     e.target.value = "";
     if (!f) return;
     const text = await f.text();
-    const replace = value.length > 0 && confirm(`Ya hay ${value.length} competidores. ¿Reemplazar (Aceptar) o agregar al final (Cancelar)?`);
+    const replace = value.length > 0 && confirm(
+      `Ya hay ${value.length} competidores. ¿Reemplazar (Aceptar) o agregar al final (Cancelar)?`,
+    );
     importText(text, replace ? "replace" : "append");
   }
 
@@ -70,76 +69,72 @@ export function StepParticipants({ value, onChange, disabled }: Props) {
     <div className="wizard-step">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
         <p className="step-intro" style={{ margin: 0 }}>
-          Carga competidores desde un CSV o agrégalos a mano. Mínimo 1.
+          Sube un CSV y/o agrega competidores a mano. Puedes hacer las dos
+          cosas — el CSV agrega o reemplaza la lista actual, y luego puedes
+          añadir más manualmente.
         </p>
         <span className="section-meta">{value.length} CARGADOS</span>
       </div>
 
-      <div className="seg-group" style={{ marginTop: 16 }}>
-        <button type="button" className={`seg ${tab === "manual" ? "active" : ""}`} onClick={() => setTab("manual")}>
-          <strong>Manual</strong>
-          <span className="muted small">Uno por uno</span>
-        </button>
-        <button type="button" className={`seg ${tab === "csv" ? "active" : ""}`} onClick={() => setTab("csv")}>
-          <strong>CSV</strong>
-          <span className="muted small">Importar archivo</span>
-        </button>
-      </div>
-
-      {tab === "manual" && !disabled && (
-        <div style={{ marginTop: 16, display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr 140px 80px auto" }}>
-          <input
-            className="field-input"
-            placeholder="Nombre"
-            value={draft.nombre}
-            onChange={(e) => patchDraft("nombre", e.target.value)}
-          />
-          <input
-            className="field-input"
-            placeholder="Apellido"
-            value={draft.apellido}
-            onChange={(e) => patchDraft("apellido", e.target.value)}
-          />
-          <select
-            className="field-input"
-            value={draft.beltColor}
-            onChange={(e) => patchDraft("beltColor", e.target.value as BeltColor)}
-          >
-            {BELT_ORDER.map((b) => <option key={b} value={b}>{BELT_LABEL[b]}</option>)}
-          </select>
-          <input
-            type="number"
-            min={3} max={99}
-            className="field-input"
-            value={draft.age}
-            onChange={(e) => patchDraft("age", parseInt(e.target.value || "0", 10))}
-          />
-          <button type="button" className="btn primary" onClick={addDraft}>Añadir</button>
-        </div>
-      )}
-
-      {tab === "csv" && !disabled && (
-        <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={onFile}
-              style={{ display: "none" }}
-            />
-            <button type="button" className="btn primary" onClick={() => fileRef.current?.click()}>
-              Subir archivo CSV
-            </button>
-            <button type="button" className="btn ghost" onClick={downloadSample}>
-              Descargar plantilla
-            </button>
+      {!disabled && (
+        <>
+          <div className="cat-form" style={{ marginTop: 16 }}>
+            <h4 className="section-meta" style={{ margin: "0 0 8px" }}>IMPORTAR CSV</h4>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={onFile}
+                style={{ display: "none" }}
+              />
+              <button type="button" className="btn primary" onClick={() => fileRef.current?.click()}>
+                Subir archivo CSV
+              </button>
+              <button type="button" className="btn ghost" onClick={downloadSample}>
+                Descargar plantilla
+              </button>
+            </div>
+            <p className="muted small" style={{ marginTop: 8, marginBottom: 0 }}>
+              Formato: columnas <code>nombre, apellido, beltColor, age</code>.
+              Acepta nombres de cinta en español (blanco, naranja, marrón…).
+            </p>
           </div>
-          <p className="muted small">
-            Formato: columnas <code>nombre, apellido, beltColor, age</code>.
-            Acepta nombres de cinta en español (blanco, naranja, marrón…).
-          </p>
-        </div>
+
+          <div className="cat-form" style={{ marginTop: 12 }}>
+            <h4 className="section-meta" style={{ margin: "0 0 8px" }}>AÑADIR A MANO</h4>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr 140px 80px auto" }}>
+              <input
+                className="field-input"
+                placeholder="Nombre"
+                value={draft.nombre}
+                onChange={(e) => patchDraft("nombre", e.target.value)}
+              />
+              <input
+                className="field-input"
+                placeholder="Apellido"
+                value={draft.apellido}
+                onChange={(e) => patchDraft("apellido", e.target.value)}
+              />
+              <select
+                className="field-input"
+                value={draft.beltColor}
+                onChange={(e) => patchDraft("beltColor", e.target.value as BeltColor)}
+              >
+                {BELT_ORDER.map((b) => <option key={b} value={b}>{BELT_LABEL[b]}</option>)}
+              </select>
+              <input
+                type="number"
+                min={3} max={99}
+                className="field-input"
+                value={draft.age}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => patchDraft("age", parseInt(e.target.value || "0", 10))}
+              />
+              <button type="button" className="btn primary" onClick={addDraft}>Añadir</button>
+            </div>
+          </div>
+        </>
       )}
 
       {errors.length > 0 && (

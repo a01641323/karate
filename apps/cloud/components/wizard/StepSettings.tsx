@@ -8,7 +8,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const SUBCAT_SIZES: BundleSettings["subcategorySize"][] = [4, 8, 16];
+const SUBCAT_SIZES: BundleSettings["subcategorySize"][] = [4, 8, 16, 32];
 const MODES: { v: BundleSettings["disciplineMode"]; label: string; sub: string }[] = [
   { v: "combat", label: "Combate", sub: "Solo kumite" },
   { v: "kata",   label: "Kata",    sub: "Solo formas" },
@@ -33,6 +33,7 @@ export function StepSettings({ value, onChange, disabled }: Props) {
           min={1}
           max={6}
           value={value.areaCount}
+          onFocus={(e) => e.target.select()}
           onChange={(e) => set("areaCount", clamp(parseInt(e.target.value || "1", 10), 1, 6))}
           className="field-input"
           disabled={disabled}
@@ -86,6 +87,7 @@ export function StepSettings({ value, onChange, disabled }: Props) {
           min={0}
           max={20}
           value={value.pointDifference ?? 8}
+          onFocus={(e) => e.target.select()}
           onChange={(e) => set("pointDifference", clamp(parseInt(e.target.value || "0", 10), 0, 20))}
           className="field-input"
           disabled={disabled}

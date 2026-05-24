@@ -1,6 +1,6 @@
 export type Discipline = "combat" | "kata";
 export type DisciplineMode = Discipline | "both";
-export type SubcategorySize = 4 | 8 | 16;
+export type SubcategorySize = 4 | 8 | 16 | 32;
 
 export type SubcategoryType =
   | "standard"

@@ -15,6 +15,24 @@ export const BELT_LABEL: Record<BeltColor, string> = {
   blue: "Azul", purple: "Morado", brown: "Marrón", black: "Negro",
 };
 
+/** Feminine singular forms used to auto-name categories ("Amarilla 4-6"). */
+export const BELT_LABEL_F: Record<BeltColor, string> = {
+  white: "Blanca", yellow: "Amarilla", orange: "Naranja", green: "Verde",
+  blue: "Azul", purple: "Morada", brown: "Marrón", black: "Negra",
+};
+
+/** Derive a display name from belts + age range. */
+export function deriveCategoryName(belts: BeltColor[], minAge: number, maxAge: number | null): string {
+  let beltPart: string;
+  if (belts.length === BELT_ORDER.length) beltPart = "Todas";
+  else if (belts.length === 0) beltPart = "Sin cintas";
+  else if (belts.length === 1) beltPart = BELT_LABEL_F[belts[0]];
+  else if (belts.length === 2) beltPart = `${BELT_LABEL_F[belts[0]]}/${BELT_LABEL_F[belts[1]]}`;
+  else beltPart = "Mixto";
+  const agePart = maxAge ? `${minAge}-${maxAge}` : `${minAge}+`;
+  return `${beltPart} ${agePart}`;
+}
+
 export const BELT_ALIASES: Record<string, BeltColor> = {
   white: "white", blanco: "white", blanca: "white",
   yellow: "yellow", amarillo: "yellow", amarilla: "yellow",

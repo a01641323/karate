@@ -241,8 +241,8 @@ export function SuperadminTerminal() {
 
       else if (kind === "setup-size") {
         const [raw] = data;
-        const n = parseInt(raw, 10) as 4 | 8 | 16;
-        if (![4, 8, 16].includes(n)) { print("err", "ERR: must be 4, 8, or 16"); return; }
+        const n = parseInt(raw, 10) as 4 | 8 | 16 | 32;
+        if (![4, 8, 16, 32].includes(n)) { print("err", "ERR: must be 4, 8, 16, or 32"); return; }
         const s = t.settings;
         applyTournamentSettings(n, s.disciplineMode, s.pointDifference ?? 8, true);
         print("hi", `✓ Group size set to ${n}`);

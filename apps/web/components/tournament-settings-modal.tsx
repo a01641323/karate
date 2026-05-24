@@ -144,7 +144,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
 
         <h3>Subcategory Size</h3>
         <div className="radio-group">
-          {[4, 8, 16].map((v) => (
+          {[4, 8, 16, 32].map((v) => (
             <label
               key={v}
               className={size === v ? "checked" : ""}

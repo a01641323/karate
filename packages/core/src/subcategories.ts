@@ -27,7 +27,7 @@ export function emptyMatch(p1: string | null, p2: string | null): Match {
 
 export interface SubSpec {
   type: SubcategoryType | "playin-orphan";
-  size?: SubcategorySize | 4 | 8 | 16;
+  size?: SubcategorySize | 4 | 8 | 16 | 32;
   competitors: (string | null)[];
   playinCompetitors?: [string, string];
   fullCompetitorList?: string[];

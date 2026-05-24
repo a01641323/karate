@@ -5,7 +5,7 @@ import type { DisciplineMode, SubcategorySize } from "@karate/core";
 import { buildAreaPlan } from "@karate/core";
 import { useStore } from "@/lib/store";
 
-const SIZES: SubcategorySize[] = [4, 8, 16];
+const SIZES: SubcategorySize[] = [4, 8, 16, 32];
 const MODES: { value: DisciplineMode; label: string }[] = [
   { value: "combat", label: "Combat only" },
   { value: "kata", label: "Kata only" },

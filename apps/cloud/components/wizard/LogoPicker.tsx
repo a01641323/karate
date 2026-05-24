@@ -20,6 +20,8 @@ export interface LogoState {
   height: number;
   bytes: number;
   format: "webp" | "png";
+  /** Width or height of the source image before resize. Used for low-res warning. */
+  sourceLongestEdge?: number;
 }
 
 interface Props {
@@ -41,6 +43,7 @@ export function LogoPicker({ value, onChange }: Props) {
       const img = await loadImage(url);
       URL.revokeObjectURL(url);
 
+      const sourceLongestEdge = Math.max(img.width, img.height);
       const { canvas, w, h } = drawFit(img, MAX_EDGE);
       let blob = await canvasToBlob(canvas, "image/webp", QUALITY);
       let format: "webp" | "png" = "webp";
@@ -58,7 +61,7 @@ export function LogoPicker({ value, onChange }: Props) {
         );
       }
       const dataUrl = await blobToDataUrl(blob);
-      const next: LogoState = { dataUrl, width: w, height: h, bytes: blob.size, format };
+      const next: LogoState = { dataUrl, width: w, height: h, bytes: blob.size, format, sourceLongestEdge };
       setMeta(next);
       onChange(dataUrl);
     } catch (err) {
@@ -132,9 +135,20 @@ export function LogoPicker({ value, onChange }: Props) {
       )}
 
       {error && <div className="error-banner" style={{ marginTop: 12 }}>{error}</div>}
+      {meta?.sourceLongestEdge !== undefined && meta.sourceLongestEdge < 128 && (
+        <div
+          className="error-banner"
+          style={{ marginTop: 12, borderColor: "#f59e0b", color: "#f59e0b", background: "rgba(245, 158, 11, 0.08)" }}
+        >
+          Imagen muy pequeña ({meta.sourceLongestEdge}px) — se verá borrosa en el marcador.
+          Recomendado al menos 256 px en el lado mayor.
+        </div>
+      )}
       <p className="muted small" style={{ marginTop: 12 }}>
-        La imagen se reduce automáticamente a 512 px y se convierte a WebP para no
-        inflar el tamaño del bundle. Opcional.
+        Formatos aceptados: PNG, JPG, JPEG, WebP, SVG. Recomendado: al menos
+        256 × 256 px para que se vea nítido en el marcador. La imagen se reduce
+        automáticamente a 512 px y se convierte a WebP para no inflar el bundle.
+        Opcional.
       </p>
     </div>
   );

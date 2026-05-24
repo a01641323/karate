@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BELT_LABEL, BELT_ORDER, type BeltColor, type CategoryDef } from "./types";
+import {
+  BELT_LABEL, BELT_ORDER, deriveCategoryName,
+  type BeltColor, type CategoryDef,
+} from "./types";
 
 interface Props {
   value: CategoryDef[];
@@ -27,14 +30,25 @@ export function StepCategories({ value, onChange, disabled }: Props) {
   function toggleBeltOnDraft(b: BeltColor) {
     setDraft((d) => {
       const has = d.belts.includes(b);
-      return { ...d, belts: has ? d.belts.filter((x) => x !== b) : [...d.belts, b] };
+      // Keep them in canonical order for consistent auto-naming.
+      const nextSet = new Set(d.belts);
+      if (has) nextSet.delete(b); else nextSet.add(b);
+      const next = BELT_ORDER.filter((c) => nextSet.has(c));
+      return { ...d, belts: next };
     });
   }
+  function selectAllBelts() {
+    setDraft((d) => ({ ...d, belts: [...BELT_ORDER] }));
+  }
+  function clearAllBelts() {
+    setDraft((d) => ({ ...d, belts: [] }));
+  }
+
+  const derivedName = deriveCategoryName(draft.belts, draft.minAge, draft.maxAge);
 
   function addDraft() {
-    if (!draft.name.trim()) return;
     if (draft.belts.length === 0) return;
-    onChange([...value, { ...draft, id: newId() }]);
+    onChange([...value, { ...draft, id: newId(), name: derivedName }]);
     setDraft(emptyRow());
   }
 
@@ -45,9 +59,8 @@ export function StepCategories({ value, onChange, disabled }: Props) {
   return (
     <div className="wizard-step">
       <p className="step-intro">
-        Cada categoría agrupa competidores por edad y cinturones. Define al
-        menos una; típicamente se separa Infantil / Juvenil / Adulto y por
-        rango de cinta (ej. Blanco–Amarillo, Naranja–Verde, Azul–Negro).
+        Cada categoría agrupa competidores por edad y cinturones. El nombre
+        se genera automáticamente — define al menos una.
       </p>
 
       {value.length === 0 ? (
@@ -82,18 +95,29 @@ export function StepCategories({ value, onChange, disabled }: Props) {
       {!disabled && (
         <div className="cat-form">
           <h4 className="section-meta" style={{ margin: "16px 0 8px" }}>AÑADIR CATEGORÍA</h4>
-          <label className="field">
-            <span className="field-label">Nombre</span>
-            <input
-              className="field-input"
-              placeholder="Ej. Infantil A · Blanco a Amarillo"
-              value={draft.name}
-              onChange={(e) => patchDraft("name", e.target.value)}
-            />
-          </label>
+
+          <div
+            className="field"
+            style={{
+              padding: "10px 12px",
+              background: "color-mix(in oklab, var(--color-accent) 8%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--color-accent) 30%, transparent)",
+            }}
+          >
+            <span className="muted small mono" style={{ letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Se guardará como
+            </span>
+            <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>{derivedName}</div>
+          </div>
 
           <div className="field">
-            <span className="field-label">Cinturones</span>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+              <span className="field-label" style={{ margin: 0 }}>Cinturones</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" className="btn-row" onClick={selectAllBelts}>Seleccionar todas</button>
+                <button type="button" className="btn-row" onClick={clearAllBelts}>Limpiar</button>
+              </div>
+            </div>
             <div className="belt-grid">
               {BELT_ORDER.map((b) => (
                 <button
@@ -116,6 +140,7 @@ export function StepCategories({ value, onChange, disabled }: Props) {
                 min={3} max={99}
                 className="field-input"
                 value={draft.minAge}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => patchDraft("minAge", parseInt(e.target.value || "0", 10))}
               />
             </label>
@@ -126,6 +151,7 @@ export function StepCategories({ value, onChange, disabled }: Props) {
                 min={3} max={99}
                 className="field-input"
                 value={draft.maxAge ?? ""}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => patchDraft("maxAge", e.target.value ? parseInt(e.target.value, 10) : null)}
               />
             </label>
@@ -136,7 +162,7 @@ export function StepCategories({ value, onChange, disabled }: Props) {
               type="button"
               className="btn primary"
               onClick={addDraft}
-              disabled={!draft.name.trim() || draft.belts.length === 0}
+              disabled={draft.belts.length === 0}
             >
               Añadir categoría
             </button>
