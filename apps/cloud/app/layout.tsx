@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kumite/OS · Sistema digital de torneo",
-  description: "Solicita un código, descarga la app, corre tu torneo de karate.",
+  title: "Kumite/OS · Sistema óptimo para torneos",
+  description: "Desde tu navegador. Todo conectado.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

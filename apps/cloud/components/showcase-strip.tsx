@@ -15,7 +15,7 @@ const SCREENS = [
   {
     id: "admin",
     label: "ADMIN",
-    sub: "Marcador en vivo",
+    sub: "Distribuición de enfrentamientos",
     url: "localhost/admin",
     src: "/screens/admin.png",
   },
@@ -29,7 +29,7 @@ const SCREENS = [
   {
     id: "public",
     label: "PUBLIC",
-    sub: "Pantalla pública del torneo",
+    sub: "Marcador en vivo",
     url: "localhost/public",
     src: "/screens/public.png",
   },
@@ -44,14 +44,12 @@ export function ShowcaseStrip() {
       <div className="section-head">
         <div className="section-num">03</div>
         <div className="section-titles">
-          <h2 className="section-title">La app en acción</h2>
+          <h2 className="section-title">App en acción</h2>
           <p className="section-sub">
-            Cuatro pantallas. Cada operador (mesa de control, panel privado,
-            pantalla pública, check-in) corre la suya en cualquier máquina del
-            estadio.
+            Toma asistencia, revisa los enfrentamientos, anota los puntos y proyéctalos en pantalla.
           </p>
         </div>
-        <div className="section-meta">4 PANTALLAS · LOOP ∞</div>
+        <div className="section-meta">DISEÑO DE ALTA GAMA</div>
       </div>
 
       <div className="strip" aria-label="App screenshots carousel">

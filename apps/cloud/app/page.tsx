@@ -16,15 +16,15 @@ export default function LandingPage() {
           <span className="tag">
             <span className="tag-dot" /> EDICIÓN 2026
           </span>
-          <span className="tag-line">SISTEMA DIGITAL DE TORNEO</span>
+          <span className="tag-line">SISTEMA ÓPTIMO PARA TORNEOS</span>
         </div>
 
         <h1 className="hero-title">
           <span className="hero-title-line">KUMITE</span>
-          <span className="hero-title-line outline">OPEN</span>
+          <span className="hero-title-line outline">OPTIMAL SYSTEM</span>
         </h1>
 
-        <div className="kanji" aria-hidden>空手</div>
+        <div className="kanji" aria-hidden>組手</div>
 
         <div className="hero-foot">
           <Link href="/request" className="hero-cta">
@@ -35,8 +35,8 @@ export default function LandingPage() {
       </section>
 
       <AboutSection />
-      <ShowcaseStrip />
       <HowItWorksSection />
+      <ShowcaseStrip />
 
       <Footer />
     </div>
@@ -49,17 +49,15 @@ function AboutSection() {
       <div className="section-head">
         <div className="section-num">01</div>
         <div className="section-titles">
-          <h2 className="section-title">Sobre el sistema</h2>
+          <h2 className="section-title">¿Qué ofrecemos?</h2>
         </div>
         <div className="section-meta">PLATAFORMA DIGITAL</div>
       </div>
 
       <div className="about-grid">
         <p className="about-lead">
-          Un sistema digital de scoring para torneos de karate. Solicita un
-          código aquí, descarga la app, y corre tu torneo durante 24 horas en
-          tu propia máquina — sin internet, sin papel, sin servidores
-          externos.
+          No desperdicies el tiempo. Todo conectado.
+          Solo haz click y anota los puntos. Nosotros nos encargamos del resto.
         </p>
       </div>
     </section>
@@ -71,22 +69,22 @@ function HowItWorksSection() {
     {
       n: "01",
       t: "Solicita un código",
-      d: "Llena el formulario con tu correo y fecha de torneo. El operador revisa la solicitud.",
+      d: "Llena el formulario con tu información, personaliza tu torneo y adquiere tu código.",
     },
     {
       n: "02",
-      t: "Recibe la aprobación",
-      d: "Una vez aprobado, tu código de 6 dígitos aparece automáticamente en tu pantalla de espera.",
+      t: "Descarga la app",
+      d: "Elige tu sistema operativo y ejecuta el descargable desde tu terminal.",
     },
     {
       n: "03",
-      t: "Descarga la app",
-      d: "Un solo archivo ejecutable para tu sistema operativo: macOS, Windows o Linux.",
+      t: "¡Entra!",
+      d: "Ahora podrás usar el comando kumiteos para abrir la app e ingresar tu código de torneo.",
     },
     {
       n: "04",
-      t: "Pega el código",
-      d: "Ejecuta la app, abre http://localhost:4747 en tu navegador y pega el código. 24 horas de torneo.",
+      t: "Conecta a tu equipo",
+      d: "Usa la liga en la parte superior de tu pantalla para unirte sin descargas",
     },
   ];
   return (
@@ -94,10 +92,10 @@ function HowItWorksSection() {
       <div className="section-head">
         <div className="section-num">02</div>
         <div className="section-titles">
-          <h2 className="section-title">Cómo funciona</h2>
-          <p className="section-sub">Cuatro pasos. Cero papel.</p>
+          <h2 className="section-title">Primeros pasos</h2>
+          <p className="section-sub">Todo en tu navegador</p>
         </div>
-        <div className="section-meta">~ 5 MIN DE SETUP</div>
+        <div className="section-meta">~ EMPIEZA YA</div>
       </div>
 
       <div className="steps">

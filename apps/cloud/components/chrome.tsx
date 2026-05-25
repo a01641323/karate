@@ -49,10 +49,8 @@ export function TopBar() {
           <span className="brand-name">KUMITE/OS</span>
         </Link>
         <nav className="topnav">
-          <Link href="/#about">Sistema</Link>
           <Link href="/request">Solicitar</Link>
           <Link href="/download">Descargar</Link>
-          <Link href="/#how">Cómo funciona</Link>
         </nav>
         <div className="status">
           <span className="dot" />
@@ -74,11 +72,10 @@ export function Footer() {
         <div className="footer-links">
           <Link href="/request">Solicitar</Link>
           <Link href="/download">Descargar</Link>
-          <Link href="/#how">Cómo funciona</Link>
         </div>
         <div className="footer-meta">© 2026 · Sistema oficial de torneo</div>
       </div>
-      <div className="footer-mark" aria-hidden>KUMITE / OPEN / 2026</div>
+      <div className="footer-mark" aria-hidden>KUMITE / OPTIMAL SYSTEM</div>
     </footer>
   );
 }
