@@ -745,6 +745,14 @@ body { opacity: 1; transition: opacity 600ms var(--ease-out); }
   box-shadow: 0 24px 50px -30px rgba(0,0,0,0.35);
 }
 
+/* Brand logo — micro-spin on hover. The path inside is the red X
+   stroke (var(--color-accent)); when the user hovers the brand link
+   the entire SVG rotates 45° so the X glides to a "+" and the
+   surrounding square tilts. */
+.brand svg { transition: transform 500ms var(--ease-out); }
+.brand svg path { transition: stroke 200ms var(--ease-soft); }
+.brand:hover svg { transform: rotate(45deg); }
+
 /* Top nav hover underline */
 .topnav a { position: relative; }
 .topnav a::after {
@@ -776,7 +784,6 @@ body { opacity: 1; transition: opacity 600ms var(--ease-out); }
   padding: 0 32px;
   animation: strip-scroll 60s linear infinite;
 }
-.strip:hover .strip-track { animation-play-state: paused; }
 @keyframes strip-scroll {
   from { transform: translate3d(0, 0, 0); }
   to   { transform: translate3d(-50%, 0, 0); }
