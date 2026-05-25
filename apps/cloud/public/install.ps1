@@ -47,6 +47,20 @@ Get-ChildItem -Path $AppDir -Force | Where-Object { $_.Name -in @("kumiteos.exe"
 Copy-Item -Path (Join-Path $Extracted.FullName "*") -Destination $AppDir -Recurse -Force
 Remove-Item -Recurse -Force $Tmp
 
+# Make sure $AppDir is on the user-scope PATH so `kumiteos` works
+# from any new PowerShell or cmd window. Idempotent: only writes if
+# the directory isn't already in the user PATH.
+$User = [Environment]::GetEnvironmentVariable("PATH", "User")
+if (-not $User) { $User = "" }
+$entries = $User -split ";" | Where-Object { $_ -ne "" }
+if (-not ($entries -contains $AppDir)) {
+  $next = ($entries + @($AppDir)) -join ";"
+  [Environment]::SetEnvironmentVariable("PATH", $next, "User")
+  Write-Host "==> Added $AppDir to your user PATH (open a new PowerShell)."
+}
+# Also extend the current session so `kumiteos` works immediately.
+$env:PATH = "$($env:PATH);$AppDir"
+
 # Refuse to double-launch.
 $busy = Get-NetTCPConnection -LocalPort 4747 -ErrorAction SilentlyContinue
 if ($busy) {
@@ -76,6 +90,10 @@ Start-Process "http://localhost:4747"
 
 Paste your 6-digit access code in the lock screen.
 LAN guests can open  http://<this-machine-ip>:4747  in their browsers.
+
+Useful commands (from any new PowerShell):
+    kumiteos          launch the server again
+    kumiteos update   pull the latest version
 
 NOTE: If SmartScreen blocked the first launch, click "More info" -> "Run anyway".
 "@ | Write-Host

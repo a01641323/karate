@@ -65,6 +65,33 @@ if [ -w "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
   ln -sf "$APP_DIR/kumiteos" "$HOME/.local/bin/kumiteos" 2>/dev/null || true
 fi
 
+# Make sure ~/.local/bin is on PATH for future shells. We append a
+# guarded block (marker comments make this idempotent — re-running the
+# installer never duplicates). Touches .zshrc AND .bashrc because some
+# users have zsh as their login shell but bash for sub-shells.
+ensure_on_path() {
+  rc="$1"
+  [ -e "$rc" ] || touch "$rc"
+  if ! grep -q "kumiteos PATH" "$rc" 2>/dev/null; then
+    cat >> "$rc" <<'BLOCK'
+
+# >>> kumiteos PATH >>>
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+# <<< kumiteos PATH <<<
+BLOCK
+    echo "==> Added ~/.local/bin to PATH in $rc"
+  fi
+}
+ensure_on_path "$HOME/.zshrc"
+ensure_on_path "$HOME/.bashrc"
+
+# Export for the *current* shell too, so the post-install instruction
+# "type kumiteos to relaunch" works without opening a new terminal.
+export PATH="$HOME/.local/bin:$PATH"
+
 # Refuse to launch if port 4747 is already taken — most likely another
 # instance is already running, and double-launching corrupts the data
 # dir.
@@ -98,4 +125,8 @@ cat <<EOF
 
 Paste your 6-digit access code in the lock screen.
 LAN guests can open  http://<this-machine-ip>:4747  in their browsers.
+
+Useful commands (from any terminal):
+    kumiteos          launch the server again
+    kumiteos update   pull the latest version
 EOF
