@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Arrow, Footer, TopBar } from "@/components/chrome";
+import { ShowcaseStrip } from "@/components/showcase-strip";
+import { RevealClient } from "@/components/reveal-client";
 
 export default function LandingPage() {
   return (
     <div>
+      <RevealClient />
       <TopBar />
 
       <section className="hero">
@@ -32,6 +35,7 @@ export default function LandingPage() {
       </section>
 
       <AboutSection />
+      <ShowcaseStrip />
       <HowItWorksSection />
 
       <Footer />

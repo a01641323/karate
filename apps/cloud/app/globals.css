@@ -628,3 +628,288 @@ button { font-family: inherit; }
   display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
 }
+
+/* ============ animation tokens ============ */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Body fades in once <html.loaded> is set by RevealClient. */
+html:not(.loaded) body { opacity: 0; }
+body { opacity: 1; transition: opacity 600ms var(--ease-out); }
+
+/* Top bar slides down on load */
+.topbar { animation: slide-down 700ms var(--ease-out) both; }
+@keyframes slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+/* Hero meta + foot fade up after the bar */
+.hero-meta { animation: fade-up 700ms var(--ease-out) 200ms both; }
+.hero-foot { animation: fade-up 800ms var(--ease-out) 700ms both; }
+
+/* Kanji easing */
+.kanji { animation: kanji-in 1400ms var(--ease-out) 300ms both; }
+@keyframes kanji-in {
+  from { opacity: 0; transform: translateY(-50%) scale(1.08); }
+  to   { opacity: 0.08; transform: translateY(-50%) scale(1); }
+}
+
+/* Per-letter hero title stagger. Letters are injected by RevealClient. */
+.hero-title-line .letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.6em);
+  animation: letter-rise 700ms var(--ease-out) forwards;
+  animation-delay: calc(280ms + var(--i) * 28ms);
+  will-change: transform, opacity;
+}
+.hero-title-line.outline .letter {
+  animation-delay: calc(420ms + var(--i) * 28ms);
+}
+@keyframes letter-rise {
+  from { opacity: 0; transform: translateY(0.6em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reveal-on-scroll base */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 700ms var(--ease-out),
+    transform 700ms var(--ease-out);
+  will-change: opacity, transform;
+}
+.reveal.in { opacity: 1; transform: translateY(0); }
+
+/* Section-head inner stagger once the head reveals */
+.section-head.in .section-num    { animation: fade-up 500ms var(--ease-out)  60ms both; }
+.section-head.in .section-titles { animation: fade-up 600ms var(--ease-out) 120ms both; }
+.section-head.in .section-meta   { animation: fade-up 500ms var(--ease-out) 200ms both; }
+
+/* Steps fade in alongside their section's head */
+.steps .step {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 600ms var(--ease-out),
+    transform 600ms var(--ease-out);
+}
+.steps .step:nth-child(1) { transition-delay: 0ms; }
+.steps .step:nth-child(2) { transition-delay: 100ms; }
+.steps .step:nth-child(3) { transition-delay: 200ms; }
+.steps .step:nth-child(4) { transition-delay: 300ms; }
+.section:has(.section-head.in) .steps .step,
+.steps .step.in {
+  opacity: 1; transform: translateY(0);
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Buttons — softer push + arrow slide */
+.btn {
+  transition:
+    transform 220ms var(--ease-out),
+    filter 180ms var(--ease-out),
+    background 180ms var(--ease-soft),
+    border-color 180ms var(--ease-soft);
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); transition-duration: 100ms; }
+.btn svg { transition: transform 240ms var(--ease-out); }
+.btn:hover svg { transform: translateX(4px); }
+
+.hero-cta {
+  transition: transform 260ms var(--ease-out), filter 200ms;
+}
+.hero-cta:active { transform: translateY(0) scale(0.98); }
+.hero-cta svg { transition: transform 260ms var(--ease-out); }
+.hero-cta:hover svg { transform: translateX(6px); }
+
+/* Card hover lift */
+.card {
+  transition:
+    transform 320ms var(--ease-out),
+    border-color 240ms var(--ease-soft),
+    box-shadow 320ms var(--ease-out);
+}
+.card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-fg) 22%, var(--color-line));
+  box-shadow: 0 24px 50px -30px rgba(0,0,0,0.35);
+}
+
+/* Top nav hover underline */
+.topnav a { position: relative; }
+.topnav a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 100%; bottom: -4px;
+  height: 1px;
+  background: var(--color-accent);
+  transition: right 280ms var(--ease-out);
+}
+.topnav a:hover::after { right: 0; }
+
+/* ============ ShowcaseStrip (looping screens carousel) ============
+   Bezel viewport aspect ratio matches the source PNGs (3360x2004 ≈
+   1.6766) so each screenshot fills its frame edge-to-edge with no
+   crop and no letterbox. */
+.strip {
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line);
+  padding: 48px 0;
+  margin: 24px -32px 0;
+}
+.strip-track {
+  display: flex;
+  gap: 48px;
+  width: max-content;
+  padding: 0 32px;
+  animation: strip-scroll 60s linear infinite;
+}
+.strip:hover .strip-track { animation-play-state: paused; }
+@keyframes strip-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.winframe {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 540px;
+  margin: 0;
+}
+.winframe-bezel {
+  position: relative;
+  width: 100%;
+  background: color-mix(in oklab, var(--color-fg) 4%, transparent);
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--color-fg) 22%, var(--color-line));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    0 30px 60px -30px rgba(0,0,0,0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.winframe-chrome {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  padding: 0 14px;
+  background: color-mix(in oklab, var(--color-fg) 6%, transparent);
+  border-bottom: 1px solid var(--color-line);
+  flex: 0 0 auto;
+}
+.winframe-dots { display: flex; gap: 6px; align-items: center; }
+.winframe-dots span { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.winframe-dots .dot-r { background: #FF5F57; }
+.winframe-dots .dot-y { background: #FEBC2E; }
+.winframe-dots .dot-g { background: #28C840; }
+.winframe-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  min-width: 220px;
+  max-width: 320px;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--color-bg) 75%, transparent);
+  border: 1px solid var(--color-line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-fg-2);
+  justify-self: center;
+  white-space: nowrap;
+}
+.winframe-url svg { color: var(--color-fg-2); flex: 0 0 auto; }
+.winframe-controls { display: flex; justify-content: flex-end; gap: 4px; }
+.winframe-controls span {
+  width: 12px; height: 2px;
+  background: color-mix(in oklab, var(--color-fg) 22%, transparent);
+  display: block;
+}
+.winframe-view {
+  position: relative;
+  width: 100%;
+  /* native ratio of the screenshots: 3360 × 2004 */
+  aspect-ratio: 3360 / 2004;
+  background: color-mix(in oklab, var(--color-fg) 6%, transparent);
+  overflow: hidden;
+}
+.winframe-view img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill; /* native ratio matches frame, so fill = pixel-perfect */
+  user-select: none;
+}
+.winframe-cap {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 14px;
+  align-items: baseline;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-line);
+}
+.winframe-cap-n {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+}
+.winframe-cap-t {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--color-fg);
+}
+.winframe-cap-s {
+  font-size: 13px;
+  color: var(--color-fg-2);
+}
+.strip-fade {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 120px;
+  pointer-events: none;
+  z-index: 1;
+}
+.strip-fade-l {
+  left: 0;
+  background: linear-gradient(to right, var(--color-bg), transparent);
+}
+.strip-fade-r {
+  right: 0;
+  background: linear-gradient(to left, var(--color-bg), transparent);
+}
+
+@media (max-width: 700px) {
+  .winframe { width: 86vw; max-width: 420px; }
+  .strip { margin-left: -20px; margin-right: -20px; }
+}
+
+/* Respect reduced motion across everything */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+  .strip-track { animation: none; }
+}
