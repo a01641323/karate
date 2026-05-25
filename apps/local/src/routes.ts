@@ -104,7 +104,16 @@ export function buildRoutes(
   //      LicenseStore. Kept for dev so `pnpm dev` still works
   //      end-to-end without a deployed cloud.
   // ---------------------------------------------------------------
-  const cloudUrl = process.env.KARATE_CLOUD_URL?.replace(/\/+$/, "") ?? "";
+  // Default to the production cloud so `kumiteos` invoked from any
+  // shell — not just via the installer's nohup wrapper — can proxy
+  // activation. Setting KARATE_CLOUD_URL="" explicitly opts out
+  // (legacy dev mode: sign JWTs locally against the in-process
+  // LicenseStore).
+  const envCloudUrl = process.env.KARATE_CLOUD_URL;
+  const cloudUrl = (envCloudUrl === undefined
+    ? "https://kumiteos.vercel.app"
+    : envCloudUrl
+  ).replace(/\/+$/, "");
 
   router.post(
     "/api/activate",
