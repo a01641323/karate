@@ -6,31 +6,22 @@ import type { DiscoveredServer } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { GuestWaitingScreen } from "./guest-waiting-screen";
 
+// Single generic message for every termination reason.
+// The customer should not know whether they expired naturally, were
+// revoked by the admin, or hit a clock/signature problem — those
+// distinctions are operator-internal. They get one clear message and
+// one path: request a fresh code at kumiteos.vercel.app.
+const GENERIC_COPY = {
+  title: "Tu código expiró",
+  body: "Solicita uno nuevo en kumiteos.vercel.app/request.",
+} as const;
 const REASON_COPY: Record<LicenseDegradedReason, { title: string; body: string }> = {
-  EXPIRED: {
-    title: "License expired",
-    body: "Your license has expired. Enter a new access code below or request another at kumiteos.vercel.app/request.",
-  },
-  REVOKED: {
-    title: "Access revoked",
-    body: "This license has been revoked. If you believe this is a mistake, contact your administrator.",
-  },
-  MACHINE_MISMATCH: {
-    title: "Device not recognized",
-    body: "This license is registered to a different device. Ask your administrator to transfer it, then enter the original code.",
-  },
-  CLOCK_TAMPER: {
-    title: "Clock error",
-    body: "Your system clock appears to have moved backward. Set the correct date and time, then restart the app.",
-  },
-  INVALID_SIGNATURE: {
-    title: "Invalid license",
-    body: "Your license file failed verification. Enter a new access code below to reactivate.",
-  },
-  STORAGE_CORRUPTED: {
-    title: "License storage corrupted",
-    body: "We could not read the locally-cached license. Enter your access code below to reactivate.",
-  },
+  EXPIRED: GENERIC_COPY,
+  REVOKED: GENERIC_COPY,
+  MACHINE_MISMATCH: GENERIC_COPY,
+  CLOCK_TAMPER: GENERIC_COPY,
+  INVALID_SIGNATURE: GENERIC_COPY,
+  STORAGE_CORRUPTED: GENERIC_COPY,
 };
 
 type JoinTarget = { serverId: string | null; ip: string; port: number; label: string };
@@ -90,15 +81,12 @@ export function LockScreen({ reason }: { reason: LicenseDegradedReason | string 
     try { await license.reset(); } finally { setResetting(false); }
   }
 
-  const info = REASON_COPY[reason as LicenseDegradedReason] ?? {
-    title: "Karate Tournament",
-    body: "Enter your 6-digit access code to activate this machine for 24 hours.",
-  };
+  const info = REASON_COPY[reason as LicenseDegradedReason] ?? GENERIC_COPY;
 
   async function handleRedeem(e: React.FormEvent) {
     e.preventDefault();
     if (!/^\d{6}$/.test(code)) {
-      setError("Enter a 6-digit code.");
+      setError("Ingresa un código de 6 dígitos.");
       return;
     }
     setLoading(true);
@@ -155,7 +143,7 @@ export function LockScreen({ reason }: { reason: LicenseDegradedReason | string 
             disabled={loading || code.length !== 6}
             style={{ width: "100%", padding: "14px 16px", fontSize: 15 }}
           >
-            {loading ? "Activating…" : "Activate"}
+            {loading ? "Activando…" : "Activar"}
           </button>
         </form>
 

@@ -7,7 +7,7 @@ import type {
   AuthUser, Role, LicenseState, LicensePublic, LicenseDegradedReason,
 } from "@karate/core";
 import type { ConnectTarget } from "./api-client";
-import { apiActivate, apiMe, ApiError } from "./api-client";
+import { apiActivate, apiMe, apiVerifyJtiOnCloud, ApiError } from "./api-client";
 import { getBrowserFingerprint } from "./browser-fingerprint";
 import { setToken as secureSetToken, getToken as secureGetToken, clearToken as secureClearToken } from "./secure-storage";
 import * as Actions from "./store-actions";
@@ -321,9 +321,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus(statusFromState(licenseState, token));
   }, [licenseState, token, guestSession]);
 
-  // Heartbeat — detect revocation within 30 s without waiting for renewal.
+  // Heartbeat — local + cloud.
+  //
+  //  - Every 30 s: hit the local /api/me. Detects LAN-side revokes
+  //    (operator restarted the server with a rotated jti, etc.) and
+  //    catches JWT exp the instant it ticks past now.
+  //  - Every 5 min: hit cloud's /api/verify-jti so an admin revoke
+  //    from /admin/codes propagates to the running customer binary
+  //    even though there's no other cloud chatter post-activation.
+  //
+  // Cloud probe is best-effort — if we're offline (or the customer is
+  // running on a tournament LAN with no internet), the fetch throws,
+  // we swallow it, and the next tick tries again. Offline customers
+  // therefore keep working until the JWT exp arrives, which is the
+  // explicit "rental-style timeout works offline" requirement.
+  //
+  // Guests (mode === "client") never call cloud — the host owns the
+  // authoritative session.
   useEffect(() => {
     if (!token || isKioskRef.current) return;
+    const jti = licenseState.kind === "active" || licenseState.kind === "grace"
+      ? licenseState.license.jti
+      : null;
+    let lastCloudCheck = 0;
+    const CLOUD_INTERVAL_MS = 5 * 60 * 1000;
     const check = async () => {
       try {
         await apiMe(token);
@@ -339,12 +360,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(null);
             setLicenseState({ kind: "unlicensed" });
           }
+          return;
+        }
+      }
+
+      // Cloud revoke probe.
+      const onLine = typeof navigator !== "undefined" ? navigator.onLine : true;
+      const now = Date.now();
+      if (
+        onLine && !guestSession && jti && jti !== "kiosk" &&
+        now - lastCloudCheck >= CLOUD_INTERVAL_MS
+      ) {
+        lastCloudCheck = now;
+        try {
+          const { revoked } = await apiVerifyJtiOnCloud(jti);
+          if (revoked) {
+            const license = (typeof window !== "undefined" ? window.__KARATE__?.license : null);
+            const lastRole = licenseState.kind === "active" || licenseState.kind === "grace"
+              ? licenseState.license.role
+              : null;
+            if (license) {
+              await license.reset().catch(() => null);
+            }
+            clearSessionToken();
+            setToken(null);
+            // Land on the LockScreen ("Tu código expiró") rather than
+            // LoginScreen so the customer sees a clear expiry message
+            // instead of a fresh activation form.
+            setLicenseState({ kind: "degraded", reason: "REVOKED", lastRole });
+          }
+        } catch {
+          // Network failure → swallow. JWT exp is the hard ceiling.
         }
       }
     };
     const id = setInterval(check, 30_000);
     return () => clearInterval(id);
-  }, [token]);
+  }, [token, licenseState, guestSession]);
 
   // ------- Actions -------
   const login = useCallback(async (code: string): Promise<AuthUser> => {

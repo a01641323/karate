@@ -129,6 +129,26 @@ declare global {
 
 const DEFAULT_PORT = 4747;
 
+/**
+ * Cloud (Vercel) URL used for the cross-internet revoke heartbeat.
+ * Separate from getServerUrl() — which resolves to the LAN host
+ * (127.0.0.1 / hostname / manual override). The cloud endpoint must
+ * be reached directly so an admin revoke can propagate to every
+ * customer's running binary independent of LAN topology.
+ *
+ * Override at build time via NEXT_PUBLIC_KUMITEOS_CLOUD_URL or at
+ * runtime via window.__KARATE__.cloudUrl (set by the desktop
+ * preload for staging environments).
+ */
+const FALLBACK_CLOUD_URL = "https://kumiteos.vercel.app";
+export function getCloudUrl(): string {
+  if (typeof window !== "undefined") {
+    const w = window as Window & { __KARATE__?: { cloudUrl?: string } };
+    if (w.__KARATE__?.cloudUrl) return w.__KARATE__.cloudUrl;
+  }
+  return process.env.NEXT_PUBLIC_KUMITEOS_CLOUD_URL || FALLBACK_CLOUD_URL;
+}
+
 export function getServerUrl(): string {
   if (typeof window === "undefined") return `http://127.0.0.1:${DEFAULT_PORT}`;
   // The karate-bridge sets this to a manual-IP override or window.location.origin.
@@ -239,6 +259,22 @@ export async function apiActivate(code: string, machineFingerprint: string): Pro
 
 export async function apiMe(token: string): Promise<{ user: AuthUser; jti: string; exp: number }> {
   return apiRequest("/api/me", { token });
+}
+
+/**
+ * Ask the *cloud* whether this jti has been revoked by the admin.
+ * Used by the renderer's 5-minute revoke heartbeat to propagate
+ * `/admin/codes` → Revocar into the running customer binary even
+ * though the LAN-side /api/me has no knowledge of cloud state.
+ *
+ * Throws on network failure so callers can swallow and retry next
+ * tick (offline tolerance).
+ */
+export async function apiVerifyJtiOnCloud(jti: string): Promise<{ revoked: boolean }> {
+  const url = getCloudUrl().replace(/\/+$/, "") + `/api/verify-jti?jti=${encodeURIComponent(jti)}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new ApiError(res.status, "verify_failed");
+  return (await res.json()) as { revoked: boolean };
 }
 
 // ---------- Kiosk ----------

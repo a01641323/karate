@@ -50,8 +50,12 @@ export async function mintCode(opts: MintOpts): Promise<{ code: string; record: 
       requestId: opts.requestId,
       status: "unused",
       createdAt: Date.now(),
+      // Pre-activation window: 30 days to redeem the 6-digit code.
+      // On activation, `expiresAt` is *replaced* with
+      // `activatedAt + ttlHours*3600*1000` so the post-activation
+      // session has its own hard ceiling (rental-style: 48h).
       expiresAt: Date.now() + (opts.validForDays ?? 30) * 24 * 60 * 60 * 1000,
-      ttlHours: opts.ttlHours ?? 24,
+      ttlHours: opts.ttlHours ?? 48,
       machineFingerprint: null,
       jti: null,
       activatedAt: null,
@@ -77,12 +81,20 @@ export async function findByCodeId(codeId: string): Promise<CodeRecord | null> {
 export async function markActivated(codeHash: string, fp: string, jti: string): Promise<void> {
   const cur = await kv.get<CodeRecord>(keys.code(codeHash));
   if (!cur) return;
+  // First activation flips expiresAt to the rental deadline; re-
+  // activations on the same machine keep the existing deadline (set
+  // on the first activation) so the JWT never extends past it.
+  const activatedAt = cur.activatedAt ?? Date.now();
+  const rentalDeadline = cur.activatedAt
+    ? cur.expiresAt
+    : activatedAt + cur.ttlHours * 60 * 60 * 1000;
   const next: CodeRecord = {
     ...cur,
     status: "used",
     machineFingerprint: fp,
     jti,
-    activatedAt: Date.now(),
+    activatedAt,
+    expiresAt: rentalDeadline,
   };
   await kv.set(keys.code(codeHash), next);
 }

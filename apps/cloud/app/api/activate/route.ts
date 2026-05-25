@@ -37,7 +37,22 @@ export async function POST(req: NextRequest) {
     // Same machine reactivating — issue a fresh JWT bound to the same jti lineage.
   }
 
-  const ttlSeconds = record.ttlHours * 60 * 60;
+  // Clamp the JWT lifetime so it can never outlive the rental
+  // deadline. On first activation `record.expiresAt` is still the
+  // 30-day pre-activation window — markActivated will snap it to
+  // `activatedAt + ttlHours*3600` right after. On re-activation
+  // `record.expiresAt` is already the rental deadline, so a fresh
+  // JWT minted late in the window ends at the same instant as the
+  // original.
+  const isFirstActivation = record.activatedAt === null;
+  const cappedDeadlineMs = isFirstActivation
+    ? Date.now() + record.ttlHours * 60 * 60 * 1000
+    : record.expiresAt;
+  const remainingSecs = Math.floor((cappedDeadlineMs - Date.now()) / 1000);
+  const ttlSeconds = Math.max(
+    60,
+    Math.min(record.ttlHours * 60 * 60, remainingSecs),
+  );
   const { token, claims } = await signLicenseJwt({
     codeId: record.codeId,
     machineFingerprint: fp,
