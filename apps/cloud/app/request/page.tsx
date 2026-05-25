@@ -8,9 +8,10 @@
 import { cookies } from "next/headers";
 import { authorizeAccess } from "@/lib/requests";
 import { getRequestBundle } from "@/lib/bundle";
+import { findByCodeId } from "@/lib/tokens";
 import { decodeRequestCookie, REQUEST_COOKIE } from "@/lib/cookie";
 import { Wizard } from "@/components/wizard/Wizard";
-import type { WizardSnapshot } from "@/components/wizard/types";
+import type { WizardSnapshot, WizardCodeStatus } from "@/components/wizard/types";
 import { emptyBundle, emptyContact } from "@/components/wizard/types";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +24,38 @@ async function hydrate(): Promise<WizardSnapshot | null> {
   const record = await authorizeAccess(decoded.requestId, decoded.accessToken);
   if (!record) return null;
   const bundle = (await getRequestBundle(record.id)) ?? emptyBundle();
+
+  // When the request was granted, look up the live code so the wizard
+  // can render either the active state (download commands + code) or
+  // the expired state (post-48h / revoked). Pre-activation codes
+  // ("unused") are still shown as active so the customer can copy
+  // them on their first visit.
+  let codeStatus: WizardCodeStatus | undefined;
+  let codeExpiresAt: number | null = null;
+  if (record.status === "granted" && record.codeId) {
+    const code = await findByCodeId(record.codeId).catch(() => null);
+    if (!code) {
+      codeStatus = "dead";
+    } else if (code.status === "revoked") {
+      codeStatus = "dead";
+    } else if (code.status === "unused") {
+      codeStatus = "unused";
+      codeExpiresAt = code.expiresAt;
+    } else if (code.status === "used") {
+      codeStatus = code.expiresAt > Date.now() ? "active" : "dead";
+      codeExpiresAt = code.expiresAt;
+    } else {
+      codeStatus = "dead";
+    }
+  }
+
   return {
     requestId: record.id,
     status: record.status,
     rejectionReason: record.rejectionReason ?? null,
     rawCode: record.status === "granted" ? record.rawCode : null,
+    codeStatus,
+    codeExpiresAt,
     contact: {
       email: record.email,
       org: record.org ?? "",

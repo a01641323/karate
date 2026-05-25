@@ -84,11 +84,27 @@ export interface WizardContact {
   notes: string;
 }
 
+/**
+ * Freshness of the underlying CodeRecord, only meaningful when
+ * `status === "granted"`. The wizard uses this to decide between
+ * the active-code view (with install commands) and the expired
+ * view (with "Solicitar nuevo código").
+ *
+ *  - "active":  code.status === "used"   && code.expiresAt > now
+ *  - "unused":  code.status === "unused" (admin granted but customer
+ *                                         has not activated yet)
+ *  - "dead":    revoked, post-48h, or missing row
+ */
+export type WizardCodeStatus = "active" | "unused" | "dead";
+
 export interface WizardSnapshot {
   requestId: string | null;
   status: "draft" | "pending" | "granted" | "rejected";
   rejectionReason: string | null;
   rawCode: string | null;
+  /** Only present when status === "granted". */
+  codeStatus?: WizardCodeStatus;
+  codeExpiresAt?: number | null;
   contact: WizardContact;
   bundle: WizardBundle;
 }

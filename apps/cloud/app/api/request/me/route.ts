@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeAccess } from "@/lib/requests";
 import { getRequestBundle } from "@/lib/bundle";
+import { findByCodeId } from "@/lib/tokens";
 import { decodeRequestCookie, REQUEST_COOKIE } from "@/lib/cookie";
 
 export const runtime = "nodejs";
@@ -22,6 +23,21 @@ export async function GET(req: NextRequest) {
     res.cookies.delete(REQUEST_COOKIE.name);
     return res;
   }
+
+  // Live code freshness — same logic as /request/page.tsx hydrate.
+  let codeStatus: "active" | "unused" | "dead" | null = null;
+  let codeExpiresAt: number | null = null;
+  if (record.status === "granted" && record.codeId) {
+    const code = await findByCodeId(record.codeId).catch(() => null);
+    if (!code) codeStatus = "dead";
+    else if (code.status === "revoked") codeStatus = "dead";
+    else if (code.status === "unused") { codeStatus = "unused"; codeExpiresAt = code.expiresAt; }
+    else if (code.status === "used") {
+      codeStatus = code.expiresAt > Date.now() ? "active" : "dead";
+      codeExpiresAt = code.expiresAt;
+    } else codeStatus = "dead";
+  }
+
   const bundle = await getRequestBundle(record.id);
   return NextResponse.json({
     request: {
@@ -35,6 +51,8 @@ export async function GET(req: NextRequest) {
       submittedAt: record.submittedAt ?? null,
       rejectionReason: record.rejectionReason,
       rawCode: record.status === "granted" ? record.rawCode : null,
+      codeStatus,
+      codeExpiresAt,
     },
     bundle,
   });

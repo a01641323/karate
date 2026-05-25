@@ -13,11 +13,13 @@
 // passes the hydrated snapshot (loaded from /api/request/me on the
 // server) — or nothing for a fresh wizard.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Arrow, Footer, TopBar } from "@/components/chrome";
+import { CopyCommand } from "@/components/copy-command";
 import {
-  STEPS, type StepKey, type WizardBundle, type WizardContact, type WizardSnapshot,
+  STEPS, type StepKey, type WizardBundle, type WizardCodeStatus,
+  type WizardContact, type WizardSnapshot,
   emptyBundle, emptyContact,
 } from "./types";
 import { StepContact } from "./StepContact";
@@ -39,6 +41,7 @@ export function Wizard({ initial }: Props) {
   const [status, setStatus] = useState<WizardSnapshot["status"]>(initial?.status ?? "draft");
   const [rejectionReason, setRejectionReason] = useState<string | null>(initial?.rejectionReason ?? null);
   const [grantedCode, setGrantedCode] = useState<string | null>(initial?.rawCode ?? null);
+  const [codeStatus, setCodeStatus] = useState<WizardCodeStatus | null>(initial?.codeStatus ?? null);
   const [contact, setContact] = useState<WizardContact>(initial?.contact ?? emptyContact());
   const [bundle, setBundle] = useState<WizardBundle>(initial?.bundle ?? emptyBundle());
 
@@ -47,7 +50,11 @@ export function Wizard({ initial }: Props) {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
-  const locked = status === "pending" || status === "granted";
+  // The wizard is read-only while pending or while the code is still
+  // alive. A granted-but-dead code unlocks "Empezar de cero" so the
+  // customer can drop the cookie and request a fresh one.
+  const codeDead = status === "granted" && codeStatus === "dead";
+  const locked = status === "pending" || (status === "granted" && !codeDead);
 
   // ---- byte size (client-side estimate, server is authoritative)
   const sizeBytes = useMemo(() => {
@@ -190,14 +197,22 @@ export function Wizard({ initial }: Props) {
 
   async function startOver() {
     if (!requestId) return;
-    if (!confirm("¿Eliminar este borrador y empezar de cero?")) return;
+    // For granted/dead codes the prompt is friendlier — the customer
+    // didn't lose any in-progress draft, they're explicitly asking
+    // for a new code. For drafts the prompt warns about discarding.
+    const prompt = codeDead
+      ? "¿Solicitar un nuevo código? Tu código expirado quedará eliminado."
+      : "¿Eliminar este borrador y empezar de cero?";
+    if (!confirm(prompt)) return;
     setBusy(true);
     try {
+      // DELETE accepts draft / rejected / granted-with-dead-code.
       await fetch(`/api/request/${requestId}`, { method: "DELETE" });
       setRequestId(null);
       setStatus("draft");
       setRejectionReason(null);
       setGrantedCode(null);
+      setCodeStatus(null);
       setContact(emptyContact());
       setBundle(emptyBundle());
       setStepIndex(0);
@@ -215,26 +230,39 @@ export function Wizard({ initial }: Props) {
     setRejectionReason(null);
   }
 
-  // Poll for granted code while pending
+  // Background poll for status / code-freshness changes.
+  //
+  //   - pending → granted/rejected: 5 s tick so the customer's view
+  //     flips quickly after admin clicks Approve / Reject.
+  //   - granted: 60 s tick so an admin revoke or the 48 h rental
+  //     expiry can flip the view to "expired" inside the same
+  //     session (without the customer having to refresh).
   useEffect(() => {
-    if (status !== "pending" || !requestId) return;
+    if (!requestId) return;
+    if (status !== "pending" && status !== "granted") return;
     let alive = true;
     const tick = async () => {
       try {
         const r = await fetch("/api/request/me", { cache: "no-store" });
         if (!alive || !r.ok) return;
         const j = await r.json();
-        if (j?.request?.status === "granted") {
+        const req = j?.request;
+        if (!req) return;
+        if (req.status === "granted") {
           setStatus("granted");
-          setGrantedCode(j.request.rawCode ?? null);
-        } else if (j?.request?.status === "rejected") {
+          setGrantedCode(req.rawCode ?? null);
+          setCodeStatus(req.codeStatus ?? null);
+        } else if (req.status === "rejected") {
           setStatus("rejected");
-          setRejectionReason(j.request.rejectionReason ?? null);
+          setRejectionReason(req.rejectionReason ?? null);
+        } else if (req.status === "pending") {
+          setStatus("pending");
         }
       } catch { /* ignore */ }
     };
     tick();
-    const id = setInterval(tick, 5000);
+    const intervalMs = status === "pending" ? 5000 : 60000;
+    const id = setInterval(tick, intervalMs);
     return () => { alive = false; clearInterval(id); };
   }, [status, requestId]);
 
@@ -259,7 +287,12 @@ export function Wizard({ initial }: Props) {
 
         {/* Banners by status */}
         {status === "pending" && <PendingBanner code={grantedCode} />}
-        {status === "granted" && grantedCode && <GrantedBanner code={grantedCode} />}
+        {status === "granted" && grantedCode && codeStatus !== "dead" && (
+          <GrantedBanner code={grantedCode} />
+        )}
+        {status === "granted" && codeStatus === "dead" && (
+          <ExpiredBanner onStartOver={startOver} busy={busy} />
+        )}
         {status === "rejected" && (
           <div className="card" style={{ borderColor: "color-mix(in oklab, var(--color-accent) 50%, var(--color-line))", marginBottom: 16 }}>
             <div className="card-head">
@@ -404,10 +437,53 @@ function GrantedBanner({ code }: { code: string }) {
       <div className="code-display">
         {code.split("").map((d, i) => <span key={i} className="digit">{d}</span>)}
       </div>
+
+      <p className="muted small" style={{ marginTop: 16, marginBottom: 8 }}>
+        Instala la app desde tu terminal — el comando detecta tu sistema,
+        descarga el binario y abre el navegador en{" "}
+        <code className="inline-code">localhost:4747</code> listo para pegar el código.
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 8 }}>
+        <CopyCommand
+          label="macOS / Linux"
+          command="curl -fsSL https://kumiteos.vercel.app/install.sh | sh"
+        />
+        <CopyCommand
+          label="Windows · PowerShell"
+          command="iwr -useb https://kumiteos.vercel.app/install.ps1 | iex"
+        />
+      </div>
+
+      <p className="muted small" style={{ marginTop: 12, marginBottom: 0 }}>
+        Tu código vence 48 horas después de la primera activación.{" "}
+        <Link href="/download" className="muted-link">Más detalles</Link>.
+      </p>
+    </div>
+  );
+}
+
+function ExpiredBanner({ onStartOver, busy }: { onStartOver: () => void; busy: boolean }) {
+  return (
+    <div className="card" style={{ marginBottom: 16, borderColor: "color-mix(in oklab, var(--color-accent) 50%, var(--color-line))" }}>
+      <div className="card-head">
+        <span className="card-eyebrow">CÓDIGO EXPIRADO</span>
+        <span className="card-status status-error">No disponible</span>
+      </div>
+      <p style={{ margin: 0 }}>
+        Tu código ya no está activo — usaste las 48 horas posteriores a la
+        activación o el operador lo revocó. Solicita uno nuevo para tu
+        próximo torneo.
+      </p>
       <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-        <Link href="/download" className="btn primary">
-          Descargar la app <Arrow />
-        </Link>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={onStartOver}
+          disabled={busy}
+        >
+          {busy ? "…" : "Solicitar nuevo código"} <Arrow />
+        </button>
       </div>
     </div>
   );
