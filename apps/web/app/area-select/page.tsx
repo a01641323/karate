@@ -4,15 +4,12 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { areaLabel, buildAreaPlan } from "@karate/core";
 import { useStore } from "@/lib/store";
-import { useArea } from "@/lib/area-context";
-import { useAuth } from "@/lib/auth-context";
+import { useArea, type AreaRole } from "@/lib/area-context";
 
 export default function AreaSelectPage() {
   const router = useRouter();
   const { state } = useStore();
   const { setArea } = useArea();
-  const { hasRole } = useAuth();
-  const isSuperadmin = hasRole("superadmin");
 
   const plan = useMemo(
     () =>
@@ -27,9 +24,6 @@ export default function AreaSelectPage() {
     [state.tournament]
   );
 
-  // Render every configured area, even if nothing is assigned yet —
-  // a referee may still need to pick their area before participants
-  // are uploaded.
   const areas = useMemo(() => {
     const out: { index: number; subCount: number; loadMatches: number }[] = [];
     for (let i = 0; i < state.tournament.settings.areaCount; i++) {
@@ -45,8 +39,8 @@ export default function AreaSelectPage() {
 
   const totalSubs = areas.reduce((a, b) => a + b.subCount, 0);
 
-  function pick(idx: number | null) {
-    setArea(idx);
+  function pick(idx: number | null, role: AreaRole) {
+    setArea(idx, role);
     router.push("/admin");
   }
 
@@ -65,25 +59,36 @@ export default function AreaSelectPage() {
         </div>
       )}
 
+      {/* Admin role lives in its own horizontal rectangle above the
+          area grid — it spans the full row to set it apart from a
+          competition area. */}
+      <button
+        className="area-card area-card-admin"
+        type="button"
+        onClick={() => pick(null, "admin")}
+        title="Vista del administrador del torneo (check-in + manage)"
+      >
+        <div className="area-num">✦</div>
+        <div className="area-card-admin-titles">
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Administrador</div>
+          <div className="area-meta">
+            Check-in y panel de control de todas las áreas
+          </div>
+        </div>
+        <div className="area-card-admin-tags">
+          <span className="tag-chip">Admin</span>
+          <span className="tag-chip">Check-in</span>
+          <span className="tag-chip">Manage</span>
+        </div>
+      </button>
+
       <div className="area-grid">
-        {isSuperadmin && (
-          <button
-            className="area-card area-card-all"
-            type="button"
-            onClick={() => pick(null)}
-            title="Superadmin view: see every area's subcategories together"
-          >
-            <div className="area-num">✦</div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>All areas</div>
-            <div className="area-meta">superadmin view</div>
-          </button>
-        )}
         {areas.map((a) => (
           <button
             key={a.index}
             className="area-card"
             type="button"
-            onClick={() => pick(a.index)}
+            onClick={() => pick(a.index, "area")}
           >
             <div className="area-num">{a.index + 1}</div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{areaLabel(a.index)}</div>
