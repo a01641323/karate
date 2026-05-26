@@ -75,7 +75,7 @@ export function Footer() {
         </div>
         <div className="footer-meta">© 2026 · Sistema oficial de torneo</div>
       </div>
-      <div className="footer-mark" aria-hidden>KUMITE / OPTIMAL SYSTEM</div>
+      <div className="footer-mark" aria-hidden>KUMITE /OPTIMAL</div>
     </footer>
   );
 }

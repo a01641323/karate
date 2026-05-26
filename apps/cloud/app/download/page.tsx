@@ -67,7 +67,7 @@ export default function DownloadPage() {
             <li>
               <span className="flow-num">1</span>
               <div>
-                <div className="flow-title">Pegá el comando en la terminal</div>
+                <div className="flow-title">Pega el comando en la terminal</div>
                 <div className="flow-sub">
                   Detecta tu OS y arquitectura, descarga el binario
                   correspondiente desde GitHub Releases, lo guarda en{" "}
@@ -90,7 +90,7 @@ export default function DownloadPage() {
             <li>
               <span className="flow-num">3</span>
               <div>
-                <div className="flow-title">Pegá tu código de 6 dígitos</div>
+                <div className="flow-title">Pega tu código de 6 dígitos</div>
                 <div className="flow-sub">
                   Pedí uno en <a href="/request" className="muted-link">/request</a>.
                   El código abre la app por 24 horas. Las máquinas LAN
