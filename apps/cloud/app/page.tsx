@@ -6,6 +6,15 @@ import { RevealClient } from "@/components/reveal-client";
 export default function LandingPage() {
   return (
     <div>
+      {/* Inline script runs before paint and gates the body opacity-0 fade-in
+          ONLY on the landing page. RevealClient then releases the gate by
+          adding `loaded` after mount. Other routes never set `fade-gate`,
+          so they render visibly on direct navigation. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: "document.documentElement.classList.add('fade-gate')",
+        }}
+      />
       <RevealClient />
       <TopBar />
 

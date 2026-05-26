@@ -654,8 +654,11 @@ button { font-family: inherit; }
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Body fades in once <html.loaded> is set by RevealClient. */
-html:not(.loaded) body { opacity: 0; }
+/* Body fades in once <html.loaded> is set by RevealClient.
+   Scoped to .fade-gate so only the landing page hides body initially —
+   otherwise direct navigation to /admin, /request, /download would
+   render a blank page (RevealClient only mounts on /). */
+html.fade-gate:not(.loaded) body { opacity: 0; }
 body { opacity: 1; transition: opacity 600ms var(--ease-out); }
 
 /* Top bar slides down on load */
