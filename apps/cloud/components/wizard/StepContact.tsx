@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { WizardContact } from "./types";
 
 interface Props {
@@ -7,9 +8,11 @@ interface Props {
   onChange: (v: WizardContact) => void;
   disabled?: boolean;
   error?: string | null;
+  privacyAccepted: boolean;
+  onPrivacyChange: (v: boolean) => void;
 }
 
-export function StepContact({ value, onChange, disabled, error }: Props) {
+export function StepContact({ value, onChange, disabled, error, privacyAccepted, onPrivacyChange }: Props) {
   function set<K extends keyof WizardContact>(k: K, v: WizardContact[K]) {
     onChange({ ...value, [k]: v });
   }
@@ -65,6 +68,22 @@ export function StepContact({ value, onChange, disabled, error }: Props) {
           placeholder="Contexto opcional para el operador."
           disabled={disabled}
         />
+      </label>
+
+      <label className="field privacy-consent">
+        <input
+          type="checkbox"
+          checked={privacyAccepted}
+          onChange={(e) => onPrivacyChange(e.target.checked)}
+          disabled={disabled}
+        />
+        <span>
+          He leído y acepto el{" "}
+          <Link href="/privacidad" target="_blank" rel="noopener" className="muted-link">
+            Aviso de Privacidad
+          </Link>{" "}
+          de Kumite/OS.
+        </span>
       </label>
 
       {error && <div className="error-banner">{error}</div>}

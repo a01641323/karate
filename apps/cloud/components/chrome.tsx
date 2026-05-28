@@ -72,9 +72,17 @@ export function Footer() {
         <div className="footer-links">
           <Link href="/request">Solicitar</Link>
           <Link href="/download">Descargar</Link>
+          <Link href="/privacidad">Aviso de Privacidad</Link>
         </div>
-        <div className="footer-meta">© 2026 · Sistema oficial de torneo</div>
+        <div className="footer-meta">
+          © 2026 · Sistema oficial de torneo · <Link href="/privacidad" className="muted-link">Aviso de Privacidad</Link>
+        </div>
       </div>
+      <p className="footer-cookies">
+        Este sitio usa cookies exclusivamente para recordar tu código de acceso
+        y mantener tu sesión activa. No se usan cookies de rastreo ni
+        publicidad. Al continuar usando el sitio, aceptas este uso.
+      </p>
       <div className="footer-mark" aria-hidden>KUMITE /OPTIMAL</div>
     </footer>
   );

@@ -44,6 +44,10 @@ export function Wizard({ initial }: Props) {
   const [codeStatus, setCodeStatus] = useState<WizardCodeStatus | null>(initial?.codeStatus ?? null);
   const [contact, setContact] = useState<WizardContact>(initial?.contact ?? emptyContact());
   const [bundle, setBundle] = useState<WizardBundle>(initial?.bundle ?? emptyBundle());
+  // Privacy-notice consent. Returning drafts (requestId already exists)
+  // accepted it when first submitted, so pre-check for them; new visitors
+  // must tick it before leaving step 1.
+  const [privacyAccepted, setPrivacyAccepted] = useState<boolean>(!!initial?.requestId);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -102,6 +106,10 @@ export function Wizard({ initial }: Props) {
     if (cur.key === "contact") {
       if (!EMAIL_RE.test(contact.email.trim())) {
         setGlobalError("Correo electrónico inválido.");
+        return;
+      }
+      if (!privacyAccepted) {
+        setGlobalError("Debes aceptar el Aviso de Privacidad para continuar.");
         return;
       }
       if (!requestId) {
@@ -330,6 +338,8 @@ export function Wizard({ initial }: Props) {
             disabled={locked}
             onContact={setContact}
             onBundle={setBundle}
+            privacyAccepted={privacyAccepted}
+            onPrivacyChange={setPrivacyAccepted}
           />
 
           {globalError && <div className="error-banner" style={{ marginTop: 16 }}>{globalError}</div>}
@@ -394,11 +404,13 @@ function StepBody(props: {
   disabled?: boolean;
   onContact: (v: WizardContact) => void;
   onBundle: (v: WizardBundle) => void;
+  privacyAccepted: boolean;
+  onPrivacyChange: (v: boolean) => void;
 }) {
-  const { stepKey, contact, bundle, sizeBytes, disabled, onContact, onBundle } = props;
+  const { stepKey, contact, bundle, sizeBytes, disabled, onContact, onBundle, privacyAccepted, onPrivacyChange } = props;
   switch (stepKey) {
     case "contact":
-      return <StepContact value={contact} onChange={onContact} disabled={disabled} />;
+      return <StepContact value={contact} onChange={onContact} disabled={disabled} privacyAccepted={privacyAccepted} onPrivacyChange={onPrivacyChange} />;
     case "settings":
       return <StepSettings value={bundle.settings} onChange={(s) => onBundle({ ...bundle, settings: s })} disabled={disabled} />;
     case "logo":
