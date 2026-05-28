@@ -124,6 +124,7 @@ export function CompetitorsSection() {
               <th>#</th>
               <th>Name</th>
               <th>Surname</th>
+              <th>Dojo</th>
               <th>Belt</th>
               <th>Age</th>
               <th>Category</th>
@@ -136,6 +137,7 @@ export function CompetitorsSection() {
                 <td>{i + 1}</td>
                 <td>{p.nombre}</td>
                 <td>{p.apellido}</td>
+                <td className={p.dojo ? "" : "muted"}>{p.dojo || "—"}</td>
                 <td>{BELT_LABEL_EN[p.beltColor]}</td>
                 <td>{p.age}</td>
                 <td className={p.matchedCategoryName ? "" : "muted"}>
@@ -147,7 +149,7 @@ export function CompetitorsSection() {
               </tr>
             ))}
             {visible.length === 0 ? (
-              <tr><td colSpan={7} className="muted">No competitors match this filter.</td></tr>
+              <tr><td colSpan={8} className="muted">No competitors match this filter.</td></tr>
             ) : null}
           </tbody>
         </table>
@@ -165,6 +167,7 @@ function AddCompetitorRow({
 }) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
+  const [dojo, setDojo] = useState("");
   const [age, setAge] = useState(10);
   const [belt, setBelt] = useState<BeltColor>("white");
   return (
@@ -180,6 +183,12 @@ function AddCompetitorRow({
         placeholder="Surname"
         value={apellido}
         onChange={(e) => setApellido(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Dojo (optional)"
+        value={dojo}
+        onChange={(e) => setDojo(e.target.value)}
       />
       <select value={belt} onChange={(e) => setBelt(e.target.value as BeltColor)}>
         {BELT_ORDER.map((b) => (
@@ -200,9 +209,10 @@ function AddCompetitorRow({
         className="primary"
         onClick={() => {
           if (!nombre.trim() || !apellido.trim()) return;
-          onAdd({ nombre: nombre.trim(), apellido: apellido.trim(), beltColor: belt, age });
+          onAdd({ nombre: nombre.trim(), apellido: apellido.trim(), dojo: dojo.trim(), beltColor: belt, age });
           setNombre("");
           setApellido("");
+          setDojo("");
         }}
       >
         Add competitor

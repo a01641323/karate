@@ -22,6 +22,7 @@ import type {
 import { DEFAULT_KEYS } from "./data";
 import { rebuildCategoriesFromParticipants } from "./categories";
 import { rebuildCategorySubcategories } from "./subcategories";
+import { arrangeByDojo } from "./dojo-seeding";
 import { newParticipantId } from "./csv";
 import { defaultCategoryDefs } from "./category-defs";
 import { generateRandomSeed } from "./seeding";
@@ -456,6 +457,17 @@ export function startCategory(state: AppState, catId: string): string[] {
       .map((p) => `${p.nombre} ${p.apellido}`.trim()),
   );
   cat.competitors = cat.competitors.filter((n) => arrivedNames.has(n));
+  // Re-run dojo-aware seeding on the actual arrived roster so the
+  // separation is optimized for who actually showed up (the full-pool
+  // arrangement degrades once no-shows are dropped).
+  const dojoByName = new Map<string, string | undefined>();
+  for (const p of state.tournament.participants) {
+    dojoByName.set(`${p.nombre} ${p.apellido}`.trim(), p.dojo);
+  }
+  cat.competitors = arrangeByDojo(
+    cat.competitors.map((n) => ({ name: n, dojo: dojoByName.get(n) })),
+    state.tournament.settings.subcategorySize,
+  );
   cat.started = true;
   // Now that we know the real roster, build the subcategories.
   rebuildCategorySubcategories(cat, state.tournament.settings);

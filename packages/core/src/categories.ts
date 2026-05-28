@@ -10,6 +10,7 @@ import { AGE_RANGES, BELT_LABEL_EN, BELT_ORDER } from "./data";
 import { rebuildCategorySubcategories } from "./subcategories";
 import { findCategoryForParticipant } from "./category-defs";
 import { shuffleSeeded } from "./seeding";
+import { arrangeByDojo } from "./dojo-seeding";
 
 // =============================================================
 // Legacy helpers — still used by data/csv consumers expecting derived
@@ -106,12 +107,19 @@ export function rebuildCategoriesFromParticipants(
     // pool in `competitors` so the check-in tab can list everybody.
     const sourcePool = wasStarted ? bucket.filter((p) => p.arrived !== false) : bucket;
     const seeded = shuffleSeeded(sourcePool, opts.seed ^ hashString(def.id));
+    // Reorder the seeded roster so same-dojo fighters are kept apart —
+    // different subcategories first, then far-apart bracket slots when
+    // forced together. No-op when there's no dojo data.
+    const competitors = arrangeByDojo(
+      seeded.map((p) => ({ name: fullName(p), dojo: p.dojo })),
+      settings.subcategorySize,
+    );
     const cat: Category = {
       id: def.id,
       name: def.name,
       beltColor: primaryBelt(def),
       ageRange: ageRangeFromDef(def),
-      competitors: seeded.map(fullName),
+      competitors,
       subcategories: [],
       activeSubcategoryId: null,
       champion: {},

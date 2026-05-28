@@ -24,6 +24,12 @@ export interface Participant {
   id: string;
   nombre: string;
   apellido: string;
+  /**
+   * Club / dojo the competitor represents. Optional — used by the
+   * dojo-aware seeder (see dojo-seeding.ts) to keep same-dojo fighters
+   * apart in the brackets. Never displayed on the scoreboard / brackets.
+   */
+  dojo?: string;
   beltColor: BeltColor;
   age: number;
   /**

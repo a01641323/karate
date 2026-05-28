@@ -27,6 +27,7 @@ export function parseParticipantsCsv(text: string): CsvParseResult {
   const idx = {
     nombre: header.indexOf("nombre"),
     apellido: header.indexOf("apellido"),
+    dojo: header.indexOf("dojo"),
     beltColor: header.indexOf("beltcolor"),
     age: header.indexOf("age"),
   };
@@ -44,6 +45,7 @@ export function parseParticipantsCsv(text: string): CsvParseResult {
     const cols = splitLine(raw);
     const nombre = (cols[idx.nombre] ?? "").trim();
     const apellido = (cols[idx.apellido] ?? "").trim();
+    const dojo = idx.dojo >= 0 ? (cols[idx.dojo] ?? "").trim() : "";
     const beltRaw = (cols[idx.beltColor] ?? "").trim().toLowerCase();
     const ageRaw = (cols[idx.age] ?? "").trim();
 
@@ -69,7 +71,7 @@ export function parseParticipantsCsv(text: string): CsvParseResult {
     }
     // Default `arrived: false` on CSV import so the operator must visit
     // the Check-in tab to mark who actually showed up on tournament day.
-    out.push({ nombre, apellido, beltColor: belt, age, arrived: false });
+    out.push({ nombre, apellido, dojo, beltColor: belt, age, arrived: false });
   }
   return { participants: out, errors };
 }
@@ -96,12 +98,15 @@ function splitLine(line: string): string[] {
 }
 
 export function stringifyParticipantsCsv(
-  participants: Pick<Participant, "nombre" | "apellido" | "beltColor" | "age">[]
+  participants: (Pick<Participant, "nombre" | "apellido" | "beltColor" | "age"> &
+    Partial<Pick<Participant, "dojo">>)[]
 ): string {
-  const lines = ["nombre,apellido,beltColor,age"];
+  const lines = ["nombre,apellido,dojo,beltColor,age"];
   for (const p of participants) {
     lines.push(
-      [p.nombre, p.apellido, p.beltColor, p.age].map(csvField).join(",")
+      [p.nombre, p.apellido, p.dojo ?? "", p.beltColor, p.age]
+        .map(csvField)
+        .join(",")
     );
   }
   return lines.join("\n") + "\n";

@@ -43,6 +43,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
   // Add-participant form
   const [pNombre, setPNombre] = useState("");
   const [pApellido, setPApellido] = useState("");
+  const [pDojo, setPDojo] = useState("");
   const [pBelt, setPBelt] = useState<BeltColor>("white");
   const [pAge, setPAge] = useState<number | "">("");
 
@@ -54,6 +55,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
     setFeedback("");
     setPNombre("");
     setPApellido("");
+    setPDojo("");
     setPBelt("white");
     setPAge("");
   }, [open, state.tournament.settings]);
@@ -128,10 +130,11 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
       setFeedback("Age must be a number between 3 and 99.");
       return;
     }
-    addParticipant({ nombre, apellido, beltColor: pBelt, age });
+    addParticipant({ nombre, apellido, dojo: pDojo.trim(), beltColor: pBelt, age });
     setFeedback(`✓ Added ${nombre} ${apellido}`);
     setPNombre("");
     setPApellido("");
+    setPDojo("");
     setPAge("");
   };
 
@@ -239,7 +242,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "1fr 1fr 1fr",
               gap: 8,
               marginBottom: 8,
             }}
@@ -257,6 +260,14 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
               placeholder="Apellido"
               value={pApellido}
               onChange={(e) => setPApellido(e.target.value)}
+              className="duration-input"
+              style={{ width: "100%" }}
+            />
+            <input
+              type="text"
+              placeholder="Dojo (opcional)"
+              value={pDojo}
+              onChange={(e) => setPDojo(e.target.value)}
               className="duration-input"
               style={{ width: "100%" }}
             />
@@ -317,6 +328,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
                 <tr style={{ position: "sticky", top: 0, background: "#161616" }}>
                   <th style={th}>Nombre</th>
                   <th style={th}>Apellido</th>
+                  <th style={th}>Dojo</th>
                   <th style={th}>Belt</th>
                   <th style={th}>Age</th>
                   <th style={th}></th>
@@ -332,7 +344,7 @@ export function TournamentSettingsModal({ open, onClose }: Props) {
                 ))}
                 {participants.length > 200 ? (
                   <tr>
-                    <td colSpan={5} style={{ ...td, color: "#888", textAlign: "center" }}>
+                    <td colSpan={6} style={{ ...td, color: "#888", textAlign: "center" }}>
                       … {participants.length - 200} more (truncated)
                     </td>
                   </tr>
@@ -401,6 +413,7 @@ function ParticipantRow({
     <tr>
       <td style={td}>{p.nombre}</td>
       <td style={td}>{p.apellido}</td>
+      <td style={{ ...td, color: p.dojo ? undefined : "#666" }}>{p.dojo || "—"}</td>
       <td style={td}>{BELT_LABEL_EN[p.beltColor]}</td>
       <td style={{ ...td, fontVariantNumeric: "tabular-nums" }}>{p.age}</td>
       <td style={{ ...td, textAlign: "right" }}>

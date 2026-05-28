@@ -5,6 +5,7 @@ export * from "./categories";
 export * from "./category-defs";
 export * from "./csv";
 export * from "./seeding";
+export * from "./dojo-seeding";
 export * from "./areas";
 export * from "./subcategories";
 export * from "./winner";
