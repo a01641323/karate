@@ -47,15 +47,43 @@ function pillForStatus(row: CodeRow, now: number) {
   return { cls: "pill-unused", label: "Sin usar" };
 }
 
+/** A code is inactive (safe to delete) when revoked or past expiry. */
+function isInactive(row: CodeRow, now: number): boolean {
+  return row.status === "revoked" || row.expiresAt <= now;
+}
+
 export function CodesTable({ rows }: { rows: CodeRow[] }) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [busy, setBusy] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const inactiveCount = rows.filter((r) => isInactive(r, now)).length;
+
+  async function purgeInactive() {
+    if (purging || inactiveCount === 0) return;
+    if (!confirm(
+      `¿Eliminar ${inactiveCount} código(s) vencido(s) o revocado(s)? ` +
+      "Se borran de forma permanente junto con sus bundles para liberar almacenamiento.",
+    )) return;
+    setPurging(true);
+    try {
+      const r = await fetch("/api/admin/codes/purge", { method: "POST" });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert(`No se pudo limpiar: ${j.error ?? r.status}`);
+      } else {
+        router.refresh();
+      }
+    } finally {
+      setPurging(false);
+    }
+  }
 
   async function revoke(codeId: string) {
     if (busy) return;
@@ -135,14 +163,38 @@ export function CodesTable({ rows }: { rows: CodeRow[] }) {
   }
 
   return (
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        onChange={onReplaceFile}
-        style={{ display: "none" }}
-      />
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <span className="muted small">
+          {inactiveCount > 0
+            ? `${inactiveCount} vencido(s) o revocado(s)`
+            : "Sin códigos inactivos"}
+        </span>
+        <button
+          className="btn-row danger"
+          onClick={purgeInactive}
+          disabled={purging || inactiveCount === 0}
+          title="Eliminar permanentemente los códigos vencidos o revocados y sus bundles"
+        >
+          {purging ? "Limpiando…" : "Limpiar inactivos"}
+        </button>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={onReplaceFile}
+          style={{ display: "none" }}
+        />
       <table className="admin-table codes-table">
         <thead>
           <tr>
@@ -223,6 +275,7 @@ export function CodesTable({ rows }: { rows: CodeRow[] }) {
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

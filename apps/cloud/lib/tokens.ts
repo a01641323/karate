@@ -109,6 +109,39 @@ export async function revokeCode(codeId: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Permanently delete a code and every KV entry attached to it: the
+ * hashed record, the id→hash pointer, the attached bundle (the bulky
+ * one), the revoked-jti tombstone, and its membership in the codes set.
+ */
+export async function deleteCode(codeId: string): Promise<boolean> {
+  const codeHash = await kv.get<string>(keys.codeById(codeId));
+  const cur = codeHash ? await kv.get<CodeRecord>(keys.code(codeHash)) : null;
+  if (codeHash) await kv.del(keys.code(codeHash));
+  await kv.del(keys.codeById(codeId));
+  await kv.del(keys.bundleByCodeId(codeId));
+  if (cur?.jti) await kv.del(keys.jtiRevoked(cur.jti));
+  await kv.srem(keys.codesSet, codeId);
+  return codeHash !== null || cur !== null;
+}
+
+/** True when a code is no longer usable: revoked, or past its expiry. */
+export function isInactive(c: CodeRecord, now = Date.now()): boolean {
+  return c.status === "revoked" || c.expiresAt <= now;
+}
+
+/**
+ * Delete every code that is already revoked or expired, freeing the KV
+ * storage they (and their bundles) occupy. Returns how many were removed.
+ */
+export async function purgeInactiveCodes(): Promise<{ deleted: number }> {
+  const codes = await listAllCodes();
+  const now = Date.now();
+  const stale = codes.filter((c) => isInactive(c, now));
+  await Promise.all(stale.map((c) => deleteCode(c.codeId)));
+  return { deleted: stale.length };
+}
+
 export async function listAllCodes(): Promise<CodeRecord[]> {
   const ids = (await kv.smembers(keys.codesSet)) as string[];
   if (ids.length === 0) return [];
