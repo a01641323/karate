@@ -56,7 +56,7 @@ export function ShowcaseStrip() {
         <div className="strip-track">
           {track.map((s, i) => (
             <figure className="winframe" key={`${s.id}-${i}`}>
-              <div className="winframe-bezel">
+              <div className="winframe-bezel" data-tilt>
                 <div className="winframe-chrome" aria-hidden>
                   <div className="winframe-dots">
                     <span className="dot-r" />
